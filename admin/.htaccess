@@ -1,0 +1,3 @@
+<FilesMatch "^seed_.*\.php$">
+    Require all denied
+</FilesMatch>

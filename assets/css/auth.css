@@ -1,0 +1,222 @@
+.auth-page {
+    position: relative;
+    min-height: 78vh;
+    display: grid;
+    place-items: center;
+    padding: 56px 5%;
+    overflow: hidden;
+    background: #efe6d8;
+}
+
+.auth-page::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(rgba(250, 248, 244, 0.78), rgba(239, 230, 216, 0.82)),
+        url("https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=1600&q=80");
+    background-position: center;
+    background-size: cover;
+    transition: 0.6s ease;
+}
+
+.auth-page:hover::before {
+    transform: scale(1.04);
+}
+
+.auth-card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 480px);
+    padding: 34px;
+    border: 1px solid rgba(229, 217, 202, 0.9);
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 24px 60px rgba(50, 35, 20, 0.16);
+    backdrop-filter: blur(14px);
+    animation: authFloat 4s ease-in-out infinite;
+}
+
+.auth-brand {
+    margin-bottom: 22px;
+    text-align: center;
+}
+
+.auth-brand span {
+    color: #b58a3b;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.auth-brand h1 {
+    margin: 8px 0;
+    color: #241f1a;
+    font-size: 31px;
+}
+
+.auth-brand p {
+    color: #6b5b4a;
+    line-height: 1.5;
+}
+
+.auth-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding: 6px;
+    border-radius: 999px;
+    background: #f4eee6;
+}
+
+.auth-tab {
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #4d433a;
+    cursor: pointer;
+    padding: 11px;
+    font-weight: 700;
+    transition: 0.25s ease;
+}
+
+.auth-tab.active {
+    background: #1f1a16;
+    color: #fff;
+    box-shadow: 0 10px 20px rgba(31, 26, 22, 0.16);
+}
+
+.auth-form {
+    display: none;
+    gap: 14px;
+    animation: authFade 0.28s ease;
+}
+
+.auth-form.active {
+    display: grid;
+}
+
+.auth-form input,
+.auth-form select,
+.password-field input {
+    width: 100%;
+    border: 1px solid #e5d9ca;
+    border-radius: 16px;
+    background: #fff;
+    outline: 0;
+    padding: 14px 16px;
+    transition: 0.25s ease;
+}
+
+.auth-form input:focus,
+.auth-form select:focus,
+.password-field input:focus {
+    border-color: #b58a3b;
+    box-shadow: 0 0 0 4px rgba(181, 138, 59, 0.12);
+}
+
+.password-field {
+    position: relative;
+}
+
+.password-field input {
+    padding-right: 48px;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: #8a7763;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.password-toggle:hover {
+    color: #b58a3b;
+}
+
+.auth-remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: #5f5043;
+    font-size: 14px;
+    font-weight: 600;
+    width: fit-content;
+}
+
+.auth-remember input {
+    width: 16px;
+    height: 16px;
+    accent-color: #b58a3b;
+}
+
+.auth-form button[type="submit"],
+.auth-switch {
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    padding: 13px 18px;
+    font-weight: 700;
+    transition: 0.25s ease;
+}
+
+.auth-form button[type="submit"] {
+    background: #1f1a16;
+    color: #fff;
+}
+
+.auth-form button[type="submit"]:hover {
+    background: #b58a3b;
+    transform: translateY(-2px);
+}
+
+.auth-switch {
+    background: #efe7dc;
+    color: #3f362e;
+}
+
+.auth-link {
+    color: #8a6a35;
+    text-align: center;
+    text-decoration: none;
+}
+
+.auth-alert {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+}
+
+.auth-alert.error {
+    background: #fff0ed;
+    color: #a0352a;
+}
+
+.auth-alert.success {
+    background: #edf8ef;
+    color: #276738;
+}
+
+@keyframes authFade {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes authFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+@media (max-width: 560px) {
+    .auth-card {
+        padding: 24px;
+    }
+}

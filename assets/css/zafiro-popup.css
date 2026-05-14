@@ -1,0 +1,107 @@
+.zc-popup-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(10, 9, 7, 0.62);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+}
+
+.zc-popup-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.zc-popup-card {
+    width: min(420px, 100%);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 18px;
+    background: linear-gradient(145deg, #171410, #090806);
+    color: #fffaf0;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+    padding: 28px;
+    text-align: center;
+    transform: translateY(10px) scale(0.96);
+    transition: transform 0.22s ease;
+}
+
+.zc-popup-overlay.open .zc-popup-card {
+    transform: translateY(0) scale(1);
+}
+
+.zc-popup-icon {
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 14px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: #d4af37;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.42);
+    font-size: 24px;
+}
+
+.zc-popup-title {
+    margin: 0 0 8px;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.zc-popup-message {
+    margin: 0;
+    color: #d7d0c4;
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+.zc-popup-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 22px;
+}
+
+.zc-popup-btn {
+    min-width: 110px;
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 999px;
+    padding: 11px 18px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.zc-popup-btn:hover {
+    transform: translateY(-1px);
+}
+
+.zc-popup-btn.primary {
+    background: #d4af37;
+    color: #15110b;
+}
+
+.zc-popup-btn.secondary {
+    background: transparent;
+    color: #fffaf0;
+}
+
+@media (max-width: 520px) {
+    .zc-popup-card {
+        padding: 24px 18px;
+    }
+
+    .zc-popup-actions {
+        flex-direction: column-reverse;
+    }
+
+    .zc-popup-btn {
+        width: 100%;
+    }
+}

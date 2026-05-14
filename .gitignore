@@ -1,0 +1,28 @@
+# Environment and secrets
+.env
+
+# Dependencies
+/vendor/
+/node_modules/
+
+# Logs and runtime junk
+/logs/*
+!/logs/.gitkeep
+*.log
+*.tmp
+*.bak
+
+# Local cleanup/test artifacts
+_cleanup_backup_*/
+zc_cookie_test.txt
+zc_test_upload.png
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Upload runtime temp/cache only. Keep real product/profile uploads tracked if needed.
+/uploads/cache/
+/uploads/temp/
+/uploads/mail_logs/
