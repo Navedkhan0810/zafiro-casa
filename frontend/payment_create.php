@@ -4,6 +4,7 @@ header("Content-Type: application/json");
 include("../backend/config/db.php");
 include_once("../backend/includes/user_auth.php");
 include_once("../backend/includes/phonepe_helper.php");
+include_once("../config/app.php");
 
 if (empty($_SESSION["user_id"])) {
     echo json_encode(["success" => false, "message" => "Please login first."]);
@@ -84,9 +85,7 @@ if (!$token) {
     exit;
 }
 
-$scheme = (!empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] !== "off") ? "https" : "http";
-$base = $scheme . "://" . $_SERVER["HTTP_HOST"] . rtrim(dirname($_SERVER["SCRIPT_NAME"]), "/\\");
-$redirectUrl = $base . "/payment_callback.php?order_id=" . urlencode($orderCode);
+$redirectUrl = zafiro_url("frontend/payment_callback.php?order_id=" . urlencode($orderCode));
 $cfg = phonepeConfig();
 $body = json_encode([
     "merchantOrderId" => $orderCode,

@@ -1,0 +1,10 @@
+.git
+.env
+logs/*
+!logs/.gitkeep
+node_modules
+vendor
+*.log
+*.tmp
+*.bak
+_cleanup_backup_*

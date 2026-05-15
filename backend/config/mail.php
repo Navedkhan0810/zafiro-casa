@@ -1,29 +1,13 @@
 <?php
-if (!function_exists('zafiroLoadEnv')) {
-    function zafiroLoadEnv($path) {
-        if (!is_readable($path)) return;
-        foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-            $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) continue;
-            [$key, $value] = array_map('trim', explode('=', $line, 2));
-            if ($key === '' || getenv($key) !== false) continue;
-            $value = trim($value, "\"'");
-            putenv($key . '=' . $value);
-            $_ENV[$key] = $value;
-            $_SERVER[$key] = $value;
-        }
-    }
-}
+require_once(__DIR__ . '/../../config/app.php');
 
-zafiroLoadEnv(__DIR__ . '/../../.env');
-
-define('ZAFIRO_SMTP_HOST', getenv('ZAFIRO_SMTP_HOST') ?: 'smtp.gmail.com');
-define('ZAFIRO_SMTP_PORT', (int) (getenv('ZAFIRO_SMTP_PORT') ?: 587));
-define('ZAFIRO_SMTP_ENCRYPTION', getenv('ZAFIRO_SMTP_ENCRYPTION') ?: 'tls');
-define('ZAFIRO_SMTP_USERNAME', getenv('ZAFIRO_SMTP_USERNAME') ?: '');
-define('ZAFIRO_SMTP_PASSWORD', getenv('ZAFIRO_SMTP_PASSWORD') ?: '');
-define('ZAFIRO_SMTP_FROM', getenv('ZAFIRO_SMTP_FROM') ?: ZAFIRO_SMTP_USERNAME);
-define('ZAFIRO_SMTP_FROM_NAME', getenv('ZAFIRO_SMTP_FROM_NAME') ?: 'Zafiro Casa Luxury Living');
+define('ZAFIRO_SMTP_HOST', zafiro_env('ZAFIRO_SMTP_HOST', 'smtp.gmail.com'));
+define('ZAFIRO_SMTP_PORT', (int) zafiro_env('ZAFIRO_SMTP_PORT', 587));
+define('ZAFIRO_SMTP_ENCRYPTION', zafiro_env('ZAFIRO_SMTP_ENCRYPTION', 'tls'));
+define('ZAFIRO_SMTP_USERNAME', zafiro_env('ZAFIRO_SMTP_USERNAME', ''));
+define('ZAFIRO_SMTP_PASSWORD', zafiro_env('ZAFIRO_SMTP_PASSWORD', ''));
+define('ZAFIRO_SMTP_FROM', zafiro_env('ZAFIRO_SMTP_FROM', ZAFIRO_SMTP_USERNAME));
+define('ZAFIRO_SMTP_FROM_NAME', zafiro_env('ZAFIRO_SMTP_FROM_NAME', 'Zafiro Casa Luxury Living'));
 
 function sendPasswordResetOtp($toEmail, $otp, &$error = '') {
     $subject = 'Zafiro Casa Password Reset OTP';

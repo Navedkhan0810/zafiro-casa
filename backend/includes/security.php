@@ -1,4 +1,6 @@
 <?php
+require_once(__DIR__ . '/../../config/app.php');
+
 if (!headers_sent()) {
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: SAMEORIGIN');
@@ -12,8 +14,8 @@ ini_set('log_errors', '1');
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => 0,
-        'path' => '/myproject',
-        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'path' => zafiro_base_path(),
+        'secure' => zafiro_is_https(),
         'httponly' => true,
         'samesite' => 'Lax'
     ]);

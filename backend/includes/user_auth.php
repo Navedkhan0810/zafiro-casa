@@ -1,4 +1,6 @@
 <?php
+require_once(__DIR__ . '/../../config/app.php');
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -75,8 +77,8 @@ function createRememberCookie($conn, $userId, $days = 30) {
     $stmt->execute();
     setcookie('zafiro_remember', $token, [
         'expires' => time() + ($days * 86400),
-        'path' => '/myproject',
-        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'path' => zafiro_base_path(),
+        'secure' => zafiro_is_https(),
         'httponly' => true,
         'samesite' => 'Lax'
     ]);
@@ -90,8 +92,8 @@ function clearRememberCookie($conn = null) {
     }
     setcookie('zafiro_remember', '', [
         'expires' => time() - 3600,
-        'path' => '/myproject',
-        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'path' => zafiro_base_path(),
+        'secure' => zafiro_is_https(),
         'httponly' => true,
         'samesite' => 'Lax'
     ]);

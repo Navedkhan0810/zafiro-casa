@@ -4,5 +4,5 @@ self.addEventListener("install", function (event) {
 
 self.addEventListener("notificationclick", function (event) {
     event.notification.close();
-    event.waitUntil(clients.openWindow("/myproject/frontend/notifications.php"));
+    event.waitUntil(clients.openWindow(self.registration.scope + "frontend/notifications.php"));
 });

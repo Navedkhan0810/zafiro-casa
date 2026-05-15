@@ -20,7 +20,7 @@ Zafiro Casa is a PHP + MySQL furniture e-commerce website with a premium black/g
 - HTML, CSS, JavaScript
 - PHPMailer via Composer
 - PhonePe Sandbox API
-- XAMPP-compatible local setup
+- Render-ready PHP deployment with optional local setup
 
 ## Project Structure
 
@@ -46,31 +46,25 @@ myproject/
 
 ## Installation
 
-1. Place the project in your XAMPP web root:
-
-```text
-C:/xampp/htdocs/myproject
-```
-
-2. Install PHP dependencies:
+1. Install PHP dependencies:
 
 ```bash
 composer install
 ```
 
-3. Create the database in phpMyAdmin:
+2. Create the database:
 
 ```sql
 CREATE DATABASE zafiro_casa_db;
 ```
 
-4. Import:
+3. Import:
 
 ```text
 database/zafiro_casa_db.sql
 ```
 
-5. Optional indexes:
+4. Optional indexes:
 
 ```text
 database/performance_indexes.sql
@@ -78,13 +72,7 @@ database/phonepe_payments.sql
 database/update_users_reset_otp.sql
 ```
 
-6. Start Apache and MySQL in XAMPP.
-
-7. Open:
-
-```text
-http://localhost/myproject/
-```
+5. Configure `.env` from `.env.example`, then serve the project with PHP/Apache.
 
 ## Environment Setup
 
@@ -97,6 +85,16 @@ cp .env.example .env
 Fill local values in `.env`. Never commit `.env`.
 
 ```env
+APP_ENV=local
+APP_URL=
+APP_BASE_PATH=/
+
+DB_HOST=
+DB_NAME=
+DB_USER=
+DB_PASS=
+DB_PORT=3306
+
 PHONEPE_ENV=sandbox
 PHONEPE_MERCHANT_ID=
 PHONEPE_CLIENT_ID=
@@ -114,6 +112,8 @@ ZAFIRO_SMTP_FROM=
 ZAFIRO_SMTP_FROM_NAME=Zafiro Casa Luxury Living
 ```
 
+For Render, set the same values in the Render dashboard environment tab.
+
 ## Payment Gateway Setup
 
 This project uses PhonePe in sandbox mode only.
@@ -128,11 +128,7 @@ This project uses PhonePe in sandbox mode only.
 
 Create or reset an admin user in your database/admin flow before use. Default demo credentials are not created automatically for security.
 
-Admin URL:
-
-```text
-http://localhost/myproject/admin/login.php
-```
+Admin URL: `/admin/login.php`
 
 ## Screenshots
 

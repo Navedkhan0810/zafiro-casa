@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: zafiro-casa
+    runtime: docker
+    plan: starter
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_URL
+        sync: false
+      - key: APP_BASE_PATH
+        value: /
+      - key: DB_HOST
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASS
+        sync: false
+      - key: DB_PORT
+        value: 3306
+      - key: PHONEPE_ENV
+        value: sandbox
+      - key: PHONEPE_BASE_URL
+        value: https://api-preprod.phonepe.com/apis/pg-sandbox
+      - key: PHONEPE_MERCHANT_ID
+        sync: false
+      - key: PHONEPE_CLIENT_ID
+        sync: false
+      - key: PHONEPE_CLIENT_SECRET
+        sync: false
+      - key: PHONEPE_SALT_KEY
+        sync: false
+      - key: PHONEPE_SALT_INDEX
+        value: 1
+      - key: ZAFIRO_SMTP_HOST
+        sync: false
+      - key: ZAFIRO_SMTP_PORT
+        value: 587
+      - key: ZAFIRO_SMTP_ENCRYPTION
+        value: tls
+      - key: ZAFIRO_SMTP_USERNAME
+        sync: false
+      - key: ZAFIRO_SMTP_PASSWORD
+        sync: false
+      - key: ZAFIRO_SMTP_FROM
+        sync: false
+      - key: ZAFIRO_SMTP_FROM_NAME
+        value: Zafiro Casa Luxury Living
