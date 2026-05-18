@@ -4,8 +4,9 @@ include("../backend/config/db.php");
 include("../backend/config/mail.php");
 include_once("../backend/includes/csrf.php");
 
-$message = "";
-$type = "";
+$message = $_SESSION["admin_reset_message"] ?? "";
+$type = $_SESSION["admin_reset_type"] ?? "";
+unset($_SESSION["admin_reset_message"], $_SESSION["admin_reset_type"]);
 
 foreach (["reset_otp" => "VARCHAR(10) NULL", "reset_otp_expiry" => "DATETIME NULL"] as $column => $definition) {
     $exists = $conn->prepare("SELECT COUNT(*) AS total FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'admins' AND column_name = ?");
@@ -25,23 +26,35 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $type = "error";
     } else {
         $stmt = $conn->prepare("SELECT admin_id, email FROM admins WHERE email = ? LIMIT 1");
+        if (!$stmt) {
+            error_log("Admin forgot password prepare failed: " . $conn->error);
+            $message = "Reset query error: " . htmlspecialchars($conn->error, ENT_QUOTES, "UTF-8");
+            $type = "error";
+        } else {
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $admin = $stmt->get_result()->fetch_assoc();
 
         if (!$admin) {
+            error_log("Admin password reset requested for unknown email: " . $email);
             $message = "No admin account found with this email.";
             $type = "error";
         } else {
             $otp = (string) random_int(100000, 999999);
-            $update = $conn->prepare("UPDATE admins SET reset_otp = ?, reset_otp_expiry = DATE_ADD(NOW(), INTERVAL 1 MINUTE) WHERE admin_id = ?");
+            $update = $conn->prepare("UPDATE admins SET reset_otp = ?, reset_otp_expiry = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE admin_id = ?");
             $update->bind_param("si", $otp, $admin["admin_id"]);
-            $update->execute();
+            if (!$update->execute()) {
+                error_log("Admin OTP update failed: " . $update->error);
+                $message = "Reset update error: " . htmlspecialchars($update->error, ENT_QUOTES, "UTF-8");
+                $type = "error";
+            } else {
 
             $mailError = "";
             if (sendPasswordResetOtp($admin["email"], $otp, $mailError)) {
                 $_SESSION["admin_reset_id"] = (int) $admin["admin_id"];
                 $_SESSION["admin_reset_email"] = $admin["email"];
+                $_SESSION["admin_reset_expires"] = time() + 600;
+                unset($_SESSION["admin_reset_verified"]);
                 $_SESSION["admin_reset_message"] = "OTP sent to admin email.";
                 $_SESSION["admin_reset_type"] = "success";
                 header("Location: verify-otp.php");
@@ -53,6 +66,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $type = "error";
         }
     }
+        }
+        }
 }
 ?>
 <!DOCTYPE html>

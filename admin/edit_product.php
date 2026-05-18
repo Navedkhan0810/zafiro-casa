@@ -2,6 +2,7 @@
 include("auth.php");
 include("../backend/config/db.php");
 include_once("../backend/includes/product_images.php");
+include_once("../backend/includes/admin_reports.php");
 
 $productId = (int) ($_GET["id"] ?? $_POST["product_id"] ?? 0);
 $message = "";
@@ -17,6 +18,8 @@ function editProductColumnExists($conn, $column) {
 function ensureEditProductColumns($conn) {
     $columns = [
         "specifications" => "TEXT NULL",
+        "category_id" => "INT NULL",
+        "subcategory_id" => "INT NULL",
         "material" => "VARCHAR(120) NULL",
         "color" => "VARCHAR(80) NULL",
         "dimensions" => "VARCHAR(120) NULL",
@@ -44,6 +47,7 @@ function uploadEditProductImage($file, $uploadDir, &$error) {
 
 ensureEditProductColumns($conn);
 ensureProductImagesSchema($conn);
+$categoryOptions = $conn->query("SELECT category_name AS label FROM categories WHERE status = 'active' AND (parent_id IS NULL OR parent_id = 0) UNION SELECT subcategory_name AS label FROM subcategories WHERE status = 'active' ORDER BY label ASC");
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && $productId > 0) {
     $name = trim($_POST["name"] ?? "");
@@ -107,7 +111,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && $productId > 0) {
             $stmt->bind_param("sdssssssssssddissssssssssiiissi", $name, $price, $category, $mainImage, $image1, $image2, $image3, $image4, $description, $slug, $brand, $sku, $originalPrice, $discountPrice, $stockQuantity, $shortDescription, $fullDescription, $specifications, $material, $color, $dimensions, $weight, $seatingCapacity, $roomType, $assemblyRequired, $featured, $trending, $inStock, $status, $galleryImages, $productId);
 
             if ($stmt->execute()) {
+                [$categoryId, $subcategoryId] = resolveProductCategoryIdsFromText($conn, $category);
+                $categoryUpdate = $conn->prepare("UPDATE products SET category_id=?, subcategory_id=? WHERE id=?");
+                $categoryUpdate->bind_param("iii", $categoryId, $subcategoryId, $productId);
+                $categoryUpdate->execute();
                 syncProductImageColumnsToTable($conn, $productId, $productImages);
+                adminReportLog($conn, "edit_product", "Updated product: " . $name, "product", $productId, $name);
                 $message = "Product updated successfully.";
                 $messageType = "success";
             } else {
@@ -168,7 +177,14 @@ include("includes/admin_sidebar.php");
                     <div class="admin-form-grid">
                         <label>Product Name<input type="text" name="name" id="productNameInput" value="<?php echo htmlspecialchars($product["name"] ?? ""); ?>" required></label>
                         <label>Product Slug<input type="text" name="slug" id="productSlugInput" value="<?php echo htmlspecialchars($product["slug"] ?? ""); ?>"></label>
-                        <label>Category<input type="text" name="category" id="productCategoryInput" value="<?php echo htmlspecialchars($product["category"] ?? ""); ?>" required></label>
+                        <label>Category
+                            <select name="category" id="productCategoryInput" required>
+                                <option value="">Select Category</option>
+                                <?php while ($categoryOption = $categoryOptions->fetch_assoc()): ?>
+                                    <option value="<?php echo htmlspecialchars($categoryOption["label"]); ?>" <?php echo ($product["category"] ?? "") === $categoryOption["label"] ? "selected" : ""; ?>><?php echo htmlspecialchars($categoryOption["label"]); ?></option>
+                                <?php endwhile; ?>
+                            </select>
+                        </label>
                         <label>Brand Name<input type="text" name="brand" value="<?php echo htmlspecialchars($product["brand"] ?? ""); ?>"></label>
                         <label>SKU Code<input type="text" name="sku" value="<?php echo htmlspecialchars($product["sku"] ?? ""); ?>"></label>
                         <label>Original Price<input type="number" step="0.01" name="original_price" id="productOriginalPriceInput" value="<?php echo htmlspecialchars($product["original_price"] ?? $product["price"] ?? ""); ?>" required></label>

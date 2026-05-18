@@ -1,0 +1,9 @@
+Options -Indexes
+
+<FilesMatch "^(\.env|.*\.log|.*\.bak|.*\.old|.*\.sql)$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(php~|phar|phtml)$">
+    Require all denied
+</FilesMatch>

@@ -1,6 +1,7 @@
 <?php
 include("auth.php");
 include("../backend/config/db.php");
+include_once("../backend/includes/admin_reports.php");
 
 $message = "";
 $messageType = "";
@@ -76,6 +77,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt->bind_param("i", $reviewId);
         $message = $stmt->execute() ? "Review approved successfully." : "Review could not be approved.";
         $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+        if ($stmt->affected_rows >= 0) adminReportLog($conn, "approve_review", "Approved review #" . $reviewId . ".", "review", $reviewId);
     }
 
     if ($reviewId > 0 && $action === "reject_review") {
@@ -83,6 +85,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt->bind_param("i", $reviewId);
         $message = $stmt->execute() ? "Review rejected successfully." : "Review could not be rejected.";
         $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+        if ($stmt->affected_rows >= 0) adminReportLog($conn, "reject_review", "Rejected review #" . $reviewId . ".", "review", $reviewId);
     }
 
     if ($reviewId > 0 && $action === "delete_review") {
@@ -90,6 +93,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt->bind_param("i", $reviewId);
         $message = $stmt->execute() ? "Review removed successfully." : "Review could not be removed.";
         $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+        if ($stmt->affected_rows >= 0) adminReportLog($conn, "delete_review", "Deleted review #" . $reviewId . ".", "review", $reviewId);
     }
 
     if ($userId > 0 && $action === "block_user" && reviewTableExists($conn, "users")) {

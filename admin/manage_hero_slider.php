@@ -1,6 +1,7 @@
 <?php
 include("auth.php");
 include("../backend/config/db.php");
+include_once("../backend/includes/category_images.php");
 
 $message = "";
 $messageType = "";
@@ -265,6 +266,7 @@ try {
 
             if ($action === "room") {
                 $link = trim($_POST["link_url"] ?? "");
+                if ($link === "") $link = zafiroCategoryUrl($title);
                 $image = uploadHomeImage("image", "homepage_room");
                 if ($id > 0 && $image) {
                     $stmt = $conn->prepare("UPDATE homepage_room_cards SET title=?, image_path=?, link_url=?, sort_order=?, status=? WHERE id=?");

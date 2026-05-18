@@ -25,6 +25,7 @@ if (!csrf_validate($_POST["csrf_token"] ?? "")) {
 }
 
 include("../backend/config/db.php");
+include_once("../backend/includes/admin_reports.php");
 
 function toggleSaveSetting($conn, $key, $value) {
     $stmt = $conn->prepare("INSERT INTO admin_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
@@ -75,6 +76,7 @@ try {
     if (!toggleSaveSetting($conn, $key, $value)) {
         throw new RuntimeException("Setting could not be saved.");
     }
+    adminReportLog($conn, "update_settings", "Updated setting " . $key . " to " . $value . ".", "settings", $key, $key);
 
     $state = [];
     $result = $conn->query("SELECT setting_key, setting_value FROM admin_settings");

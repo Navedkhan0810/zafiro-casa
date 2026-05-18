@@ -8,6 +8,14 @@ if (empty($_SESSION["admin_reset_id"]) || empty($_SESSION["admin_reset_verified"
     exit;
 }
 
+if (empty($_SESSION["admin_reset_expires"]) || time() > (int) $_SESSION["admin_reset_expires"]) {
+    unset($_SESSION["admin_reset_id"], $_SESSION["admin_reset_email"], $_SESSION["admin_reset_verified"], $_SESSION["admin_reset_expires"]);
+    $_SESSION["admin_reset_message"] = "Reset session expired. Please request a new OTP.";
+    $_SESSION["admin_reset_type"] = "error";
+    header("Location: forgot-password.php");
+    exit;
+}
+
 $message = "";
 $type = "";
 
@@ -25,14 +33,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } else {
         $hash = password_hash($password, PASSWORD_DEFAULT);
         $adminId = (int) $_SESSION["admin_reset_id"];
-        $stmt = $conn->prepare("UPDATE admins SET password = ?, reset_otp = NULL, reset_otp_expiry = NULL WHERE admin_id = ?");
+        $stmt = $conn->prepare("UPDATE admins SET password = ?, reset_otp = NULL, reset_otp_expiry = NULL WHERE admin_id = ? AND reset_otp_expiry >= NOW()");
         $stmt->bind_param("si", $hash, $adminId);
-        $stmt->execute();
+        if (!$stmt->execute() || $stmt->affected_rows < 1) {
+            error_log("Admin password reset update failed for admin_id " . $adminId . ": " . $stmt->error);
+            $message = "Password reset failed or expired. Please request a new OTP.";
+            $type = "error";
+        } else {
 
-        unset($_SESSION["admin_reset_id"], $_SESSION["admin_reset_email"], $_SESSION["admin_reset_verified"]);
+        unset($_SESSION["admin_reset_id"], $_SESSION["admin_reset_email"], $_SESSION["admin_reset_verified"], $_SESSION["admin_reset_expires"]);
         $_SESSION["admin_login_message"] = "Password reset successfully. Please login.";
         header("Location: login.php");
         exit;
+        }
     }
 }
 ?>

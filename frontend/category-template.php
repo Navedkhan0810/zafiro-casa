@@ -12,12 +12,35 @@
 
     <div class="grid">
         <?php
-        $sql = "SELECT * FROM products WHERE category IN ($categories) AND LOWER(COALESCE(status, 'active')) = 'active' LIMIT 12";
-        $result = $conn->query($sql);
+        preg_match_all("/'([^']+)'/", $categories, $categoryMatches);
+        $categoryNames = array_map('strtolower', $categoryMatches[1] ?? []);
+        $categoryIds = [];
+        $subcategoryIds = [];
+        foreach ($categoryNames as $categoryName) {
+            $categoryStmt = $conn->prepare("SELECT id, 0 AS is_subcategory FROM categories WHERE (LOWER(category_name) = ? OR LOWER(slug) = ?) AND (parent_id IS NULL OR parent_id = 0) UNION SELECT id, 1 AS is_subcategory FROM subcategories WHERE LOWER(subcategory_name) = ? OR LOWER(slug) = ? LIMIT 1");
+            $categoryStmt->bind_param("ssss", $categoryName, $categoryName, $categoryName, $categoryName);
+            $categoryStmt->execute();
+            $categoryRow = $categoryStmt->get_result()->fetch_assoc();
+            $categoryStmt->close();
+            if (!$categoryRow) continue;
+            if (!empty($categoryRow["is_subcategory"])) {
+                $subcategoryIds[] = (int) $categoryRow["id"];
+            } else {
+                $categoryIds[] = (int) $categoryRow["id"];
+            }
+        }
+        $whereParts = [];
+        if ($categoryIds) $whereParts[] = "category_id IN (" . implode(",", array_unique($categoryIds)) . ")";
+        if ($subcategoryIds) $whereParts[] = "subcategory_id IN (" . implode(",", array_unique($subcategoryIds)) . ")";
+        $result = false;
+        if ($whereParts) {
+            $sql = "SELECT * FROM products WHERE (" . implode(" OR ", $whereParts) . ") AND LOWER(COALESCE(status, 'active')) = 'active' LIMIT 12";
+            $result = $conn->query($sql);
+        }
 
         if ($result && $result->num_rows > 0) {
             while ($row = $result->fetch_assoc()) {
-                $cardImage = getProductCardImage($row);
+                $cardImage = getProductCardImage($row, $conn);
         ?>
             <div class="card product-card" data-product-id="<?php echo htmlspecialchars($row['id']); ?>" data-product-name="<?php echo htmlspecialchars($row['name']); ?>" data-product-price="<?php echo htmlspecialchars($row['price']); ?>" data-product-image="<?php echo htmlspecialchars($cardImage); ?>" data-product-url="product.php?id=<?php echo htmlspecialchars($row['id']); ?>">
                 <a class="product-card-link" href="product.php?id=<?php echo htmlspecialchars($row['id']); ?>">

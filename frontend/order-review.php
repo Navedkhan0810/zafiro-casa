@@ -2,6 +2,8 @@
 session_start();
 include("../backend/config/db.php");
 include_once("../backend/includes/user_auth.php");
+include_once("../backend/includes/csrf.php");
+include_once("../backend/includes/image_paths.php");
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: auth.php");
@@ -42,6 +44,7 @@ if ($order) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $order && !$existingReview) {
+    csrf_require();
     $status = strtolower(trim($order['order_status'] ?? ''));
     $rating = (int) ($_POST['rating'] ?? 0);
     $reviewText = trim($_POST['review_text'] ?? '');
@@ -75,7 +78,7 @@ include("../backend/includes/header.php");
             <div class="review-product-summary">
                 <div class="review-product-icon">
                     <?php if (!empty($order['image'])): ?>
-                        <img src="<?php echo htmlspecialchars($order['image']); ?>" alt="<?php echo htmlspecialchars($order['name'] ?? 'Product'); ?>">
+                        <img src="<?php echo htmlspecialchars(zafiroPublicImageUrl($order['image'])); ?>" alt="<?php echo htmlspecialchars($order['name'] ?? 'Product'); ?>">
                     <?php else: ?>
                         <i class="fa-solid fa-box-open"></i>
                     <?php endif; ?>
@@ -97,6 +100,7 @@ include("../backend/includes/header.php");
                 </div>
             <?php else: ?>
                 <form method="POST" class="review-form review-side-panel">
+                    <?php echo csrf_field(); ?>
                     <label>Rating
                         <select name="rating" class="review-rating-select" required>
                             <option value="">Select rating</option>

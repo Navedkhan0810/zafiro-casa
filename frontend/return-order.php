@@ -2,6 +2,7 @@
 session_start();
 include("../backend/config/db.php");
 include_once("../backend/includes/user_auth.php");
+include_once("../backend/includes/csrf.php");
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: auth.php");
@@ -14,6 +15,7 @@ $numericOrderId = ctype_digit($orderId) ? (int) $orderId : 0;
 $message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require();
     $reason = trim($_POST['reason'] ?? '');
     $comment = trim($_POST['comment'] ?? '');
     $conn->query("CREATE TABLE IF NOT EXISTS order_returns (id INT AUTO_INCREMENT PRIMARY KEY, order_id VARCHAR(40) NULL, user_id INT NULL, reason VARCHAR(160) NULL, comment TEXT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
@@ -41,6 +43,7 @@ include("../backend/includes/header.php");
             <p><strong><?php echo htmlspecialchars($order['name'] ?? 'Product'); ?></strong></p>
             <p>Order ID: <?php echo htmlspecialchars($order['order_id'] ?: ($order['order_code'] ?: $order['id'])); ?></p>
             <form action="return-order.php" method="POST">
+                <?php echo csrf_field(); ?>
                 <input type="hidden" name="order_id" value="<?php echo htmlspecialchars($order['order_id'] ?: ($order['order_code'] ?: $order['id'])); ?>">
                 <select name="reason" class="language-select" required>
                     <option value="">Select return reason</option>

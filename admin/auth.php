@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 include_once(__DIR__ . "/../backend/includes/csrf.php");
 
 if (!isset($_SESSION['admin_id'])) {
@@ -7,7 +9,7 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
+if (($_SERVER["REQUEST_METHOD"] ?? "") === "POST") {
     csrf_require();
 }
 

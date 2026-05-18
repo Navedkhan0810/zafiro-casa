@@ -1,9 +1,10 @@
 <?php
 function ensureProductImagesSchema($conn) {
-    ensureProductImageColumns($conn);
     $conn->query("CREATE TABLE IF NOT EXISTS product_images (
         id INT AUTO_INCREMENT PRIMARY KEY,
         product_id INT NOT NULL,
+        category_id INT NULL,
+        subcategory_id INT NULL,
         image_path VARCHAR(255) NOT NULL,
         is_main TINYINT(1) DEFAULT 0,
         sort_order INT DEFAULT 0,
@@ -15,9 +16,17 @@ function ensureProductImagesSchema($conn) {
     if (!productImageColumnExists($conn, "is_main")) {
         $conn->query("ALTER TABLE product_images ADD COLUMN is_main TINYINT(1) DEFAULT 0");
     }
+    if (!productImageColumnExists($conn, "category_id")) {
+        $conn->query("ALTER TABLE product_images ADD COLUMN category_id INT NULL AFTER product_id");
+    }
+    if (!productImageColumnExists($conn, "subcategory_id")) {
+        $conn->query("ALTER TABLE product_images ADD COLUMN subcategory_id INT NULL AFTER category_id");
+    }
     if (productImageColumnExists($conn, "is_featured")) {
         $conn->query("UPDATE product_images SET is_main = 1 WHERE COALESCE(is_featured, 0) = 1");
     }
+    syncProductImageCategoryIds($conn);
+    ensureProductImageColumns($conn);
 }
 
 function ensureProductImageColumns($conn) {
@@ -45,11 +54,37 @@ function productImageColumnExists($conn, $columnName) {
     return (int) ($stmt->get_result()->fetch_assoc()["total"] ?? 0) > 0;
 }
 
+function resolveProductImageCategoryIds($conn, $productId) {
+    $stmt = $conn->prepare("SELECT COALESCE(p.category_id, s.category_id, c.id) AS category_id, COALESCE(p.subcategory_id, s.id) AS subcategory_id FROM products p LEFT JOIN subcategories s ON s.id = p.subcategory_id OR LOWER(s.slug) = LOWER(p.category) OR LOWER(s.subcategory_name) = LOWER(p.category) LEFT JOIN categories c ON c.id = p.category_id OR LOWER(c.slug) = LOWER(p.category) OR LOWER(c.category_name) = LOWER(p.category) WHERE p.id = ? LIMIT 1");
+    $stmt->bind_param("i", $productId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    if (!$row || empty($row["category_id"])) return [null, null];
+    return [(int) $row["category_id"], !empty($row["subcategory_id"]) ? (int) $row["subcategory_id"] : null];
+}
+
+function resolveProductCategoryIdsFromText($conn, $categoryText) {
+    $categoryText = trim((string) $categoryText);
+    if ($categoryText === "") return [null, null];
+    if (strtolower($categoryText) === "bed") $categoryText = "beds";
+    $stmt = $conn->prepare("SELECT category_id, id AS subcategory_id FROM subcategories WHERE LOWER(slug) = LOWER(?) OR LOWER(subcategory_name) = LOWER(?) UNION SELECT id AS category_id, NULL AS subcategory_id FROM categories WHERE LOWER(slug) = LOWER(?) OR LOWER(category_name) = LOWER(?) LIMIT 1");
+    $stmt->bind_param("ssss", $categoryText, $categoryText, $categoryText, $categoryText);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    if (!$row || empty($row["category_id"])) return [null, null];
+    return [(int) $row["category_id"], !empty($row["subcategory_id"]) ? (int) $row["subcategory_id"] : null];
+}
+
+function syncProductImageCategoryIds($conn) {
+    $conn->query("UPDATE product_images pi JOIN products p ON p.id = pi.product_id SET pi.category_id = p.category_id, pi.subcategory_id = p.subcategory_id");
+}
+
 function addProductImageRow($conn, $productId, $imagePath, $isMain = 0, $sortOrder = 0) {
     if ($productId <= 0 || trim((string) $imagePath) === '') return;
     ensureProductImagesSchema($conn);
-    $stmt = $conn->prepare("INSERT INTO product_images (product_id, image_path, is_main, sort_order) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("isii", $productId, $imagePath, $isMain, $sortOrder);
+    [$categoryId, $subcategoryId] = resolveProductImageCategoryIds($conn, $productId);
+    $stmt = $conn->prepare("INSERT INTO product_images (product_id, category_id, subcategory_id, image_path, is_main, sort_order) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("iiisii", $productId, $categoryId, $subcategoryId, $imagePath, $isMain, $sortOrder);
     $stmt->execute();
 }
 
@@ -120,7 +155,7 @@ function deleteProductImageRows($conn, $productId, $imageIds) {
 
 function getProductImageRows($conn, $productId) {
     ensureProductImagesSchema($conn);
-    $stmt = $conn->prepare("SELECT id, image_path, is_main, sort_order FROM product_images WHERE product_id = ? ORDER BY is_main DESC, sort_order ASC, id ASC");
+    $stmt = $conn->prepare("SELECT id, image_path, is_main, sort_order, category_id, subcategory_id FROM product_images WHERE product_id = ? ORDER BY is_main DESC, sort_order ASC, id ASC");
     $stmt->bind_param("i", $productId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -163,7 +198,15 @@ function getProductGalleryImages($conn, $product) {
     return $images;
 }
 
-function getProductCardImage($product) {
+function getProductCardImage($product, $conn = null) {
+    $productId = (int) ($product['id'] ?? 0);
+    if ($conn && $productId > 0) {
+        $stmt = $conn->prepare("SELECT image_path FROM product_images WHERE product_id = ? ORDER BY is_main DESC, sort_order ASC, id ASC LIMIT 1");
+        $stmt->bind_param("i", $productId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if (!empty($row['image_path'])) return $row['image_path'];
+    }
     foreach (["image_1", "image", "image_2", "image_3", "image_4"] as $column) {
         if (!empty($product[$column])) return $product[$column];
     }

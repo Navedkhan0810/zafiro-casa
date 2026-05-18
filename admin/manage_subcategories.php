@@ -1,14 +1,40 @@
 <?php
 include("auth.php");
 include("../backend/config/db.php");
+include_once("../backend/includes/admin_reports.php");
+include_once("../backend/includes/category_images.php");
 
 $message = $_GET["message"] ?? "";
 $messageType = $_GET["type"] ?? "";
 
-$conn->query("ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id INT NULL AFTER slug");
+$conn->query("CREATE TABLE IF NOT EXISTS subcategories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    old_category_id INT NULL UNIQUE,
+    category_id INT NOT NULL,
+    subcategory_name VARCHAR(120) NOT NULL,
+    slug VARCHAR(160) NOT NULL UNIQUE,
+    description TEXT NULL,
+    image VARCHAR(255) NULL,
+    status VARCHAR(20) DEFAULT 'active',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)");
 
 function uploadSubcategoryImage($file, &$error) {
     return zafiro_secure_upload($file, "../uploads/categories", "../uploads/categories", ["jpg", "jpeg", "png", "webp"], ["image/jpeg", "image/png", "image/webp"], 4 * 1024 * 1024, "subcategory", $error);
+}
+
+function uniqueSubcategorySlug($conn, $slug, $ignoreId = 0) {
+    $base = $slug !== "" ? $slug : "subcategory";
+    $candidate = $base;
+    $suffix = 2;
+    do {
+        $stmt = $conn->prepare("SELECT id FROM subcategories WHERE slug = ? AND id <> ? LIMIT 1");
+        $stmt->bind_param("si", $candidate, $ignoreId);
+        $stmt->execute();
+        $exists = $stmt->get_result()->num_rows > 0;
+        if ($exists) $candidate = $base . "-" . $suffix++;
+    } while ($exists);
+    return $candidate;
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -17,14 +43,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if ($action === "save") {
         $name = trim($_POST["category_name"] ?? "");
-        $slug = trim($_POST["slug"] ?? "");
+        $slug = zafiroCategorySlug($_POST["slug"] !== "" ? $_POST["slug"] : $name);
         $oldName = trim($_POST["old_category_name"] ?? "");
         $parentId = (int) ($_POST["parent_id"] ?? 0);
         $description = trim($_POST["description"] ?? "");
         $status = $_POST["status"] === "inactive" ? "inactive" : "active";
+        $slug = uniqueSubcategorySlug($conn, $slug, $categoryId);
 
-        if ($name === "" || $slug === "" || $parentId <= 0) {
-            $message = "Subcategory name, slug and parent category are required.";
+        $parentCheck = null;
+        if ($parentId > 0) {
+            $parentCheck = $conn->prepare("SELECT id FROM categories WHERE id=? AND (parent_id IS NULL OR parent_id=0) LIMIT 1");
+            $parentCheck->bind_param("i", $parentId);
+            $parentCheck->execute();
+        }
+
+        if ($name === "" || $parentId <= 0 || !$parentCheck || $parentCheck->get_result()->num_rows === 0) {
+            $message = "Subcategory name and valid parent category are required.";
             $messageType = "error";
         } else {
             $uploadError = "";
@@ -34,10 +68,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $messageType = "error";
             } elseif ($categoryId > 0) {
                 if ($imagePath !== "") {
-                    $stmt = $conn->prepare("UPDATE categories SET category_name=?, slug=?, parent_id=?, description=?, category_image=?, status=? WHERE id=?");
+                    $stmt = $conn->prepare("UPDATE subcategories SET subcategory_name=?, slug=?, category_id=?, description=?, image=?, status=? WHERE id=?");
                     $stmt->bind_param("ssisssi", $name, $slug, $parentId, $description, $imagePath, $status, $categoryId);
                 } else {
-                    $stmt = $conn->prepare("UPDATE categories SET category_name=?, slug=?, parent_id=?, description=?, status=? WHERE id=?");
+                    $stmt = $conn->prepare("UPDATE subcategories SET subcategory_name=?, slug=?, category_id=?, description=?, status=? WHERE id=?");
                     $stmt->bind_param("ssissi", $name, $slug, $parentId, $description, $status, $categoryId);
                 }
                 $updated = $stmt->execute();
@@ -47,19 +81,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $productStmt->execute();
                 }
                 if ($updated) {
+                    adminReportLog($conn, "edit_subcategory", "Updated subcategory: " . $name, "subcategory", $categoryId, $name);
                     header("Location: manage_subcategories.php?type=success&message=" . urlencode("Subcategory updated successfully."));
                     exit;
                 }
                 $message = "Subcategory could not be updated.";
+                if ($stmt && $stmt->error) $message .= " " . $stmt->error;
                 $messageType = "error";
             } else {
-                $stmt = $conn->prepare("INSERT INTO categories (category_name, slug, parent_id, description, category_image, is_featured, status) VALUES (?, ?, ?, ?, ?, 0, ?)");
+                $stmt = $conn->prepare("INSERT INTO subcategories (subcategory_name, slug, category_id, description, image, status) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->bind_param("ssisss", $name, $slug, $parentId, $description, $imagePath, $status);
                 if ($stmt->execute()) {
+                    adminReportLog($conn, "add_subcategory", "Added subcategory: " . $name, "subcategory", $stmt->insert_id, $name);
                     header("Location: manage_subcategories.php?type=success&message=" . urlencode("Subcategory added successfully."));
                     exit;
                 }
                 $message = "Subcategory could not be added.";
+                if ($stmt && $stmt->error) $message .= " " . $stmt->error;
                 $messageType = "error";
             }
         }
@@ -67,34 +105,37 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if ($action === "toggle" && $categoryId > 0) {
         $newStatus = $_POST["new_status"] === "active" ? "active" : "inactive";
-        $stmt = $conn->prepare("UPDATE categories SET status=? WHERE id=? AND parent_id IS NOT NULL AND parent_id <> 0");
+        $stmt = $conn->prepare("UPDATE subcategories SET status=? WHERE id=?");
         $stmt->bind_param("si", $newStatus, $categoryId);
         $message = $stmt->execute() ? "Subcategory status updated." : "Status could not be updated.";
         $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+        if ($stmt->affected_rows >= 0) adminReportLog($conn, "edit_subcategory", "Changed subcategory status to " . $newStatus . ".", "subcategory", $categoryId);
     }
 
     if ($action === "delete" && $categoryId > 0) {
-        $stmt = $conn->prepare("SELECT category_name FROM categories WHERE id=? AND parent_id IS NOT NULL AND parent_id <> 0 LIMIT 1");
+        $stmt = $conn->prepare("SELECT subcategory_name AS category_name FROM subcategories WHERE id=? LIMIT 1");
         $stmt->bind_param("i", $categoryId);
         $stmt->execute();
         $category = $stmt->get_result()->fetch_assoc();
         $categoryName = $category["category_name"] ?? "";
 
-        $countStmt = $conn->prepare("SELECT COUNT(*) AS total FROM products WHERE category = ?");
-        $countStmt->bind_param("s", $categoryName);
+        $countStmt = $conn->prepare("SELECT COUNT(*) AS total FROM products WHERE subcategory_id = ?");
+        $countStmt->bind_param("i", $categoryId);
         $countStmt->execute();
         $productCount = (int) ($countStmt->get_result()->fetch_assoc()["total"] ?? 0);
 
         if ($productCount > 0) {
-            $hideStmt = $conn->prepare("UPDATE categories SET status='inactive' WHERE id=?");
+            $hideStmt = $conn->prepare("UPDATE subcategories SET status='inactive' WHERE id=?");
             $hideStmt->bind_param("i", $categoryId);
             $message = $hideStmt->execute() ? "Subcategory hidden because it contains products." : "Subcategory could not be hidden.";
             $messageType = $hideStmt->affected_rows >= 0 ? "success" : "error";
+            if ($hideStmt->affected_rows >= 0) adminReportLog($conn, "delete_subcategory", "Hid subcategory with products: " . $categoryName, "subcategory", $categoryId, $categoryName);
         } else {
-            $deleteStmt = $conn->prepare("DELETE FROM categories WHERE id=? AND parent_id IS NOT NULL AND parent_id <> 0");
+            $deleteStmt = $conn->prepare("DELETE FROM subcategories WHERE id=?");
             $deleteStmt->bind_param("i", $categoryId);
             $message = $deleteStmt->execute() ? "Subcategory deleted successfully." : "Subcategory could not be deleted.";
             $messageType = $deleteStmt->affected_rows > 0 ? "success" : "error";
+            if ($deleteStmt->affected_rows > 0) adminReportLog($conn, "delete_subcategory", "Deleted subcategory: " . $categoryName, "subcategory", $categoryId, $categoryName);
         }
     }
 }
@@ -102,19 +143,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 $search = trim($_GET["search"] ?? "");
 $parent = (int) ($_GET["parent_id"] ?? 0);
 $status = trim($_GET["status"] ?? "");
-$where = ["c.parent_id IS NOT NULL", "c.parent_id <> 0"];
+$where = ["1=1"];
 $params = [];
 $types = "";
 
 if ($search !== "") {
-    $where[] = "(c.category_name LIKE ? OR c.slug LIKE ?)";
+    $where[] = "(c.subcategory_name LIKE ? OR c.slug LIKE ?)";
     $term = "%" . $search . "%";
     $params[] = $term;
     $params[] = $term;
     $types .= "ss";
 }
 if ($parent > 0) {
-    $where[] = "c.parent_id = ?";
+    $where[] = "c.category_id = ?";
     $params[] = $parent;
     $types .= "i";
 }
@@ -124,7 +165,7 @@ if ($status === "active" || $status === "inactive") {
     $types .= "s";
 }
 
-$sql = "SELECT c.*, p.category_name AS parent_name, (SELECT COUNT(*) FROM products pr WHERE pr.category = c.category_name) AS product_count FROM categories c INNER JOIN categories p ON p.id = c.parent_id WHERE " . implode(" AND ", $where) . " ORDER BY p.category_name ASC, c.category_name ASC";
+$sql = "SELECT c.id, c.subcategory_name AS category_name, c.slug, c.category_id AS parent_id, c.description, c.image AS category_image, c.status, c.created_at, p.category_name AS parent_name, (SELECT COUNT(*) FROM products pr WHERE pr.subcategory_id = c.id) AS product_count FROM subcategories c INNER JOIN categories p ON p.id = c.category_id WHERE " . implode(" AND ", $where) . " ORDER BY p.category_name ASC, c.subcategory_name ASC";
 $stmt = $conn->prepare($sql);
 if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();
@@ -239,7 +280,7 @@ include("includes/admin_sidebar.php");
             <input type="hidden" name="old_category_name" id="oldCategoryNameInput">
             <div class="admin-form-grid">
                 <label>Subcategory Name<input type="text" name="category_name" id="categoryNameInput" required></label>
-                <label>Subcategory Slug<input type="text" name="slug" id="categorySlugInput" required></label>
+                <label>Subcategory Slug<input type="text" name="slug" id="categorySlugInput"></label>
                 <label>Parent Category
                     <select name="parent_id" id="categoryParentInput" required>
                         <option value="">Select Parent</option>

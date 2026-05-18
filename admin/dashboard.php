@@ -147,13 +147,48 @@ $deletedAccounts = tableExists($conn, "users") ? getCount($conn, "users", "(stat
 $totalCategories = 0;
 $totalSales = 0;
 $recentOrders = [];
-$weeklyLabels = [];
+$activityCharts = [
+    "daily" => ["title" => "Daily Store Activity", "labels" => [], "orders" => [], "sales" => []],
+    "weekly" => ["title" => "Weekly Store Activity", "labels" => [], "orders" => [], "sales" => []],
+    "monthly" => ["title" => "Monthly Store Activity", "labels" => [], "orders" => [], "sales" => []],
+    "yearly" => ["title" => "Yearly Store Activity", "labels" => [], "orders" => [], "sales" => []],
+];
+$dailyOrders = [];
+$dailySales = [];
 $weeklyOrders = [];
+$weeklySales = [];
+$monthlyOrders = [];
+$monthlySales = [];
+$yearlyOrders = [];
+$yearlySales = [];
+
+$dailyHours = range(0, 23, 2);
+foreach ($dailyHours as $hour) {
+    $activityCharts["daily"]["labels"][] = date("g A", mktime($hour, 0));
+    $dailyOrders[$hour] = 0;
+    $dailySales[$hour] = 0;
+}
 
 for ($i = 6; $i >= 0; $i--) {
     $day = date("Y-m-d", strtotime("-$i days"));
-    $weeklyLabels[] = date("d M", strtotime($day));
+    $activityCharts["weekly"]["labels"][] = date("d M", strtotime($day));
     $weeklyOrders[$day] = 0;
+    $weeklySales[$day] = 0;
+}
+
+$daysInMonth = (int) date("t");
+for ($i = 1; $i <= $daysInMonth; $i++) {
+    $day = date("Y-m-") . str_pad((string) $i, 2, "0", STR_PAD_LEFT);
+    $activityCharts["monthly"]["labels"][] = date("d M", strtotime($day));
+    $monthlyOrders[$day] = 0;
+    $monthlySales[$day] = 0;
+}
+
+for ($i = 1; $i <= 12; $i++) {
+    $monthKey = date("Y-") . str_pad((string) $i, 2, "0", STR_PAD_LEFT);
+    $activityCharts["yearly"]["labels"][] = date("M", mktime(0, 0, 0, $i, 1));
+    $yearlyOrders[$monthKey] = 0;
+    $yearlySales[$monthKey] = 0;
 }
 
 if (tableExists($conn, "categories")) {
@@ -184,16 +219,60 @@ if (tableExists($conn, "orders")) {
         $todayOrders = (int) ($row["total"] ?? 0);
 
         $weeklySql = $hasOrderCode
-            ? "SELECT DATE(order_date) AS order_day, COUNT(DISTINCT order_code) AS total FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(order_date)"
-            : "SELECT DATE(order_date) AS order_day, COUNT(*) AS total FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(order_date)";
+            ? "SELECT DATE(order_date) AS period_key, COUNT(DISTINCT order_code) AS orders_total, COALESCE(SUM(total), 0) AS sales_total FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(order_date)"
+            : "SELECT DATE(order_date) AS period_key, COUNT(*) AS orders_total, COALESCE(SUM(total), 0) AS sales_total FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(order_date)";
         $weeklyResult = $conn->query($weeklySql);
         while ($weeklyResult && $weeklyRow = $weeklyResult->fetch_assoc()) {
-            if (isset($weeklyOrders[$weeklyRow["order_day"]])) {
-                $weeklyOrders[$weeklyRow["order_day"]] = (int) $weeklyRow["total"];
+            if (isset($weeklyOrders[$weeklyRow["period_key"]])) {
+                $weeklyOrders[$weeklyRow["period_key"]] = (int) $weeklyRow["orders_total"];
+                $weeklySales[$weeklyRow["period_key"]] = (float) $weeklyRow["sales_total"];
+            }
+        }
+
+        $dailySql = $hasOrderCode
+            ? "SELECT FLOOR(HOUR(order_date) / 2) * 2 AS period_key, COUNT(DISTINCT order_code) AS orders_total, COALESCE(SUM(total), 0) AS sales_total FROM orders WHERE DATE(order_date) = CURDATE() GROUP BY FLOOR(HOUR(order_date) / 2)"
+            : "SELECT FLOOR(HOUR(order_date) / 2) * 2 AS period_key, COUNT(*) AS orders_total, COALESCE(SUM(total), 0) AS sales_total FROM orders WHERE DATE(order_date) = CURDATE() GROUP BY FLOOR(HOUR(order_date) / 2)";
+        $dailyResult = $conn->query($dailySql);
+        while ($dailyResult && $dailyRow = $dailyResult->fetch_assoc()) {
+            $hourKey = (int) $dailyRow["period_key"];
+            if (isset($dailyOrders[$hourKey])) {
+                $dailyOrders[$hourKey] = (int) $dailyRow["orders_total"];
+                $dailySales[$hourKey] = (float) $dailyRow["sales_total"];
+            }
+        }
+
+        $monthlySql = $hasOrderCode
+            ? "SELECT DATE(order_date) AS period_key, COUNT(DISTINCT order_code) AS orders_total, COALESCE(SUM(total), 0) AS sales_total FROM orders WHERE YEAR(order_date) = YEAR(CURDATE()) AND MONTH(order_date) = MONTH(CURDATE()) GROUP BY DATE(order_date)"
+            : "SELECT DATE(order_date) AS period_key, COUNT(*) AS orders_total, COALESCE(SUM(total), 0) AS sales_total FROM orders WHERE YEAR(order_date) = YEAR(CURDATE()) AND MONTH(order_date) = MONTH(CURDATE()) GROUP BY DATE(order_date)";
+        $monthlyResult = $conn->query($monthlySql);
+        while ($monthlyResult && $monthlyRow = $monthlyResult->fetch_assoc()) {
+            if (isset($monthlyOrders[$monthlyRow["period_key"]])) {
+                $monthlyOrders[$monthlyRow["period_key"]] = (int) $monthlyRow["orders_total"];
+                $monthlySales[$monthlyRow["period_key"]] = (float) $monthlyRow["sales_total"];
+            }
+        }
+
+        $yearlySql = $hasOrderCode
+            ? "SELECT DATE_FORMAT(order_date, '%Y-%m') AS period_key, COUNT(DISTINCT order_code) AS orders_total, COALESCE(SUM(total), 0) AS sales_total FROM orders WHERE YEAR(order_date) = YEAR(CURDATE()) GROUP BY DATE_FORMAT(order_date, '%Y-%m')"
+            : "SELECT DATE_FORMAT(order_date, '%Y-%m') AS period_key, COUNT(*) AS orders_total, COALESCE(SUM(total), 0) AS sales_total FROM orders WHERE YEAR(order_date) = YEAR(CURDATE()) GROUP BY DATE_FORMAT(order_date, '%Y-%m')";
+        $yearlyResult = $conn->query($yearlySql);
+        while ($yearlyResult && $yearlyRow = $yearlyResult->fetch_assoc()) {
+            if (isset($yearlyOrders[$yearlyRow["period_key"]])) {
+                $yearlyOrders[$yearlyRow["period_key"]] = (int) $yearlyRow["orders_total"];
+                $yearlySales[$yearlyRow["period_key"]] = (float) $yearlyRow["sales_total"];
             }
         }
     }
 }
+
+$activityCharts["daily"]["orders"] = array_values($dailyOrders);
+$activityCharts["daily"]["sales"] = array_values($dailySales);
+$activityCharts["weekly"]["orders"] = array_values($weeklyOrders);
+$activityCharts["weekly"]["sales"] = array_values($weeklySales);
+$activityCharts["monthly"]["orders"] = array_values($monthlyOrders);
+$activityCharts["monthly"]["sales"] = array_values($monthlySales);
+$activityCharts["yearly"]["orders"] = array_values($yearlyOrders);
+$activityCharts["yearly"]["sales"] = array_values($yearlySales);
 
 if (columnExists($conn, "orders", "total")) {
     $result = $conn->query("SELECT COALESCE(SUM(total), 0) AS total_sales FROM orders");
@@ -266,15 +345,20 @@ include("includes/admin_sidebar.php");
             <div class="admin-card-head">
                 <div>
                     <span>Sales & Orders</span>
-                    <h2>Weekly Store Activity</h2>
+                    <h2 id="storeActivityTitle">Daily Store Activity</h2>
                 </div>
-                <strong><?php echo $totalOrders; ?> Orders</strong>
+                <div class="admin-chart-side">
+                    <strong><?php echo $totalOrders; ?> Orders</strong>
+                    <div class="admin-chart-arrows" aria-label="Switch chart view">
+                        <button type="button" data-chart-view-prev aria-label="Previous chart">‹</button>
+                        <button type="button" data-chart-view-next aria-label="Next chart">›</button>
+                    </div>
+                </div>
             </div>
             <div class="admin-chart-wrap">
                 <canvas
                     id="weeklyStoreChart"
-                    data-labels="<?php echo htmlspecialchars(json_encode($weeklyLabels)); ?>"
-                    data-values="<?php echo htmlspecialchars(json_encode(array_values($weeklyOrders))); ?>"
+                    data-activity="<?php echo htmlspecialchars(json_encode($activityCharts)); ?>"
                 ></canvas>
             </div>
         </article>

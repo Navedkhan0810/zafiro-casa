@@ -1,6 +1,7 @@
 <?php
 include("auth.php");
 include("../backend/config/db.php");
+include_once("../backend/includes/admin_reports.php");
 
 $settingsCsrfToken = csrf_token();
 $message = "";
@@ -181,6 +182,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             if (!$stmt->execute()) {
                 throw new RuntimeException("Password could not be updated.");
             }
+            adminReportLog($conn, "update_settings", "Changed admin password.", "admin", $adminId, $_SESSION["admin_username"] ?? "");
             $message = "Password changed successfully.";
             $messageType = "success";
         } elseif ($action === "reset_defaults") {
@@ -188,6 +190,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 saveSetting($conn, $key, $value);
             }
             $settings = getAdminSettings($conn);
+            adminReportLog($conn, "update_settings", "Restored default website settings.", "settings");
             $message = "Default website settings restored.";
             $messageType = "success";
         } elseif ($action === "backup_database") {
@@ -208,6 +211,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             downloadTextFile("zafiro_casa_export_" . date("Ymd_His") . ".json", "application/json", json_encode($export, JSON_PRETTY_PRINT));
         } elseif ($action === "clear_cache") {
             $deleted = clearAdminCache();
+            adminReportLog($conn, "update_settings", "Cleared admin cache. Files removed: " . $deleted . ".", "settings");
             $message = "Cache cleared successfully. Files removed: " . $deleted . ".";
             $messageType = "success";
         } else {
@@ -290,6 +294,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 }
             }
             $settings = getAdminSettings($conn);
+            adminReportLog($conn, "update_settings", "Updated admin profile and website settings.", "settings", $adminId, $adminName);
             $message = "Admin profile updated successfully.";
             $messageType = "success";
         }

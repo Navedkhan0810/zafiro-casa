@@ -1,16 +1,17 @@
 <?php
 include("../backend/config/db.php");
 include("../backend/includes/header.php");
+include_once("../backend/includes/category_images.php");
 
 $visibleCards = [];
 foreach ($cards as $card) {
     $slug = $card["slug"] ?? "";
-    $stmt = $conn->prepare("SELECT category_image, status FROM categories WHERE slug=? LIMIT 1");
-    $stmt->bind_param("s", $slug);
+    $stmt = $conn->prepare("SELECT category_image, status FROM categories WHERE slug=? AND (parent_id IS NULL OR parent_id = 0) UNION SELECT image AS category_image, status FROM subcategories WHERE slug=? LIMIT 1");
+    $stmt->bind_param("ss", $slug, $slug);
     $stmt->execute();
     $categoryRow = $stmt->get_result()->fetch_assoc();
     if ($categoryRow && strtolower($categoryRow["status"]) !== "active") continue;
-    if (!empty($categoryRow["category_image"])) $card["image"] = $categoryRow["category_image"];
+    $card["image"] = !empty($categoryRow["category_image"]) ? $categoryRow["category_image"] : zafiroCategoryImageFallback($slug);
     $visibleCards[] = $card;
 }
 ?>

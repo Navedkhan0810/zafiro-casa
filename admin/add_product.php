@@ -2,6 +2,7 @@
 include("auth.php");
 include("../backend/config/db.php");
 include_once("../backend/includes/product_images.php");
+include_once("../backend/includes/admin_reports.php");
 
 $message = "";
 $messageType = "";
@@ -17,6 +18,8 @@ function adminColumnExists($conn, $table, $column) {
 function ensureProductColumns($conn) {
     $columns = [
         "slug" => "VARCHAR(160) NULL",
+        "category_id" => "INT NULL",
+        "subcategory_id" => "INT NULL",
         "brand" => "VARCHAR(120) NULL",
         "sku" => "VARCHAR(80) NULL",
         "original_price" => "DECIMAL(10,2) DEFAULT 0",
@@ -83,7 +86,7 @@ function ensureAdminCategoriesTable($conn) {
 function getAdminCategoryOptions($conn) {
     ensureAdminCategoriesTable($conn);
     $options = [];
-    $result = $conn->query("SELECT category_name FROM categories WHERE status = 'active' ORDER BY category_name ASC");
+    $result = $conn->query("SELECT category_name FROM categories WHERE status = 'active' AND (parent_id IS NULL OR parent_id = 0) UNION SELECT subcategory_name AS category_name FROM subcategories WHERE status = 'active' ORDER BY category_name ASC");
     while ($result && $row = $result->fetch_assoc()) {
         $options[] = $row["category_name"];
     }
@@ -150,7 +153,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if ($stmt->execute()) {
                 $newProductId = (int) $stmt->insert_id;
+                [$categoryId, $subcategoryId] = resolveProductCategoryIdsFromText($conn, $category);
+                $categoryUpdate = $conn->prepare("UPDATE products SET category_id=?, subcategory_id=? WHERE id=?");
+                $categoryUpdate->bind_param("iii", $categoryId, $subcategoryId, $newProductId);
+                $categoryUpdate->execute();
                 syncProductImageColumnsToTable($conn, $newProductId, $productImages);
+                adminReportLog($conn, "add_product", "Added product: " . $name, "product", $newProductId, $name);
                 $message = "Product added successfully.";
                 $messageType = "success";
             } else {

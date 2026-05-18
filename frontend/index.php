@@ -1,6 +1,7 @@
 <?php
 include("../backend/includes/header.php");
 include_once("../backend/includes/product_images.php");
+include_once("../backend/includes/category_images.php");
 
 if (isset($conn) && $conn instanceof mysqli) {
     $conn->query("CREATE TABLE IF NOT EXISTS hero_slides (
@@ -159,10 +160,10 @@ if (count($featureBoxes) < 2) {
 if (!$discountOffers) $discountOffers = $defaultDiscountOffers;
 if (!$roomCards) {
     $roomCards = [
-        ["title" => "Sofa", "image_path" => "../uploads/categories/subcategory_1778690295_4467.jpg", "link_url" => "product-list.php?category=sofa"],
-        ["title" => "Beds", "image_path" => "../uploads/categories/subcategory_1778688747_5050.jpg", "link_url" => "product-list.php?category=beds"],
-        ["title" => "Study Table", "image_path" => "../uploads/categories/subcategory_1778690776_8675.jpg", "link_url" => "product-list.php?category=study-table"],
-        ["title" => "Shoe Rack", "image_path" => "../uploads/categories/subcategory_1778690583_2182.jpg", "link_url" => "product-list.php?category=shoe-rack"]
+        ["title" => "Sofa", "image_path" => zafiroCategoryImageFallback("sofa"), "link_url" => zafiroCategoryUrl("sofa")],
+        ["title" => "Beds", "image_path" => zafiroCategoryImageFallback("beds"), "link_url" => zafiroCategoryUrl("beds")],
+        ["title" => "Study Table", "image_path" => zafiroCategoryImageFallback("study-table"), "link_url" => zafiroCategoryUrl("study-table")],
+        ["title" => "Shoe Rack", "image_path" => zafiroCategoryImageFallback("shoe-rack"), "link_url" => zafiroCategoryUrl("shoe-rack")]
     ];
 }
 if (!$whyPoints) {
@@ -219,8 +220,17 @@ if (isset($conn) && $conn instanceof mysqli) {
         </div>
         <div class="room-inspiration-grid">
             <?php foreach ($roomCards as $card): ?>
-            <a class="room-inspiration-card premium-parallax-card" href="<?php echo htmlspecialchars($card["link_url"] ?: "product-list.php"); ?>">
-                <img src="<?php echo htmlspecialchars($card["image_path"]); ?>" alt="<?php echo htmlspecialchars($card["title"]); ?>" loading="lazy" decoding="async" width="800" height="600">
+            <?php
+                $roomLink = trim($card["link_url"] ?? "");
+                if ($roomLink === "") {
+                    $roomSlug = strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', $card["title"] ?? ""), "-"));
+                    $roomSlugMap = ["sofas" => "sofa", "study" => "study-office"];
+                    $roomLink = "product-list.php?category=" . ($roomSlugMap[$roomSlug] ?? $roomSlug);
+                }
+                $roomImage = !empty($card["image_path"]) ? $card["image_path"] : zafiroCategoryImageFallback($card["title"] ?? "");
+            ?>
+            <a class="room-inspiration-card premium-parallax-card" href="<?php echo htmlspecialchars($roomLink); ?>">
+                <img src="<?php echo htmlspecialchars($roomImage); ?>" alt="<?php echo htmlspecialchars($card["title"]); ?>" loading="lazy" decoding="async" width="800" height="600">
                 <div>
                     <h3><?php echo htmlspecialchars($card["title"]); ?></h3>
                 </div>
@@ -271,20 +281,27 @@ if (isset($conn) && $conn instanceof mysqli) {
         </div>
     </section>
 
+    <?php
+        $styleGalleryCards = [
+            ["title" => "Mirrors", "slug" => "mirrors"],
+            ["title" => "Bathroom Accessories", "slug" => "bathroom-accessories"],
+            ["title" => "Bedroom", "slug" => "bedroom"],
+            ["title" => "Decor & Furnishing", "slug" => "decor-furnishing"],
+            ["title" => "Study", "slug" => "study-office"],
+            ["title" => "Modular Kitchen", "slug" => "modular-kitchen"],
+            ["title" => "Dining", "slug" => "dining"],
+            ["title" => "Living", "slug" => "living"],
+        ];
+    ?>
     <section class="section-block instagram-style-section premium-fade">
         <div class="section-title">
             <span>Luxury Details</span>
             <h2>Style Gallery</h2>
         </div>
         <div class="instagram-style-grid">
-            <a href="product-list.php?category=mirrors"><img src="../uploads/categories/subcategory_1778689022_4594.jpg" alt="Mirrors" loading="lazy" decoding="async" width="420" height="420"><span><strong>Mirrors</strong></span></a>
-            <a href="product-list.php?category=bathroom-accessories"><img src="../uploads/categories/subcategory_1778688784_5781.jpg" alt="Bathroom Accessories" loading="lazy" decoding="async" width="420" height="420"><span><strong>Bathroom Accessories</strong></span></a>
-            <a href="product-list.php?category=bedroom"><img src="../uploads/categories/subcategory_1778688747_5050.jpg" alt="Bedroom" loading="lazy" decoding="async" width="420" height="420"><span><strong>Bedroom</strong></span></a>
-            <a href="product-list.php?category=decor-furnishing"><img src="../uploads/categories/subcategory_1778689177_6656.jpg" alt="Decor Furnishing" loading="lazy" decoding="async" width="420" height="420"><span><strong>Decor & Furnishing</strong></span></a>
-            <a href="product-list.php?category=wall-decor"><img src="../uploads/categories/subcategory_1778689177_6656.jpg" alt="Wall Decor" loading="lazy" decoding="async" width="420" height="420"><span><strong>Wall Decor</strong></span></a>
-            <a href="product-list.php?category=modular-kitchen"><img src="../uploads/categories/subcategory_1778689785_3044.jpg" alt="Modular Kitchen" loading="lazy" decoding="async" width="420" height="420"><span><strong>Modular Kitchen</strong></span></a>
-            <a href="product-list.php?category=shoe-rack"><img src="../uploads/categories/subcategory_1778690583_2182.jpg" alt="Shoe Rack" loading="lazy" decoding="async" width="420" height="420"><span><strong>Shoe Rack</strong></span></a>
-            <a href="product-list.php?category=study-table"><img src="../uploads/categories/subcategory_1778690776_8675.jpg" alt="Study Table" loading="lazy" decoding="async" width="420" height="420"><span><strong>Study Table</strong></span></a>
+            <?php foreach ($styleGalleryCards as $galleryCard): ?>
+                <a href="<?php echo htmlspecialchars(zafiroCategoryUrl($galleryCard["slug"])); ?>"><img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback($galleryCard["slug"])); ?>" alt="<?php echo htmlspecialchars($galleryCard["title"]); ?>" loading="lazy" decoding="async" width="420" height="420"><span><strong><?php echo htmlspecialchars($galleryCard["title"]); ?></strong></span></a>
+            <?php endforeach; ?>
         </div>
     </section>
 
@@ -297,42 +314,42 @@ if (isset($conn) && $conn instanceof mysqli) {
         <div class="grid">
             <a href="product-list.php?category=sofa" class="category-link">
                 <div class="card category-card">
-                    <img src="https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=600&q=80" alt="Sofas" loading="lazy" decoding="async" width="600" height="400">
+                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("sofa")); ?>" alt="Sofas" loading="lazy" decoding="async" width="600" height="400">
                     <div class="card-overlay"><h3>Sofa</h3></div>
                 </div>
             </a>
 
             <a href="product-list.php?category=beds" class="category-link">
                 <div class="card category-card">
-                    <img src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=600&q=80" alt="Beds" loading="lazy" decoding="async" width="600" height="400">
+                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("beds")); ?>" alt="Beds" loading="lazy" decoding="async" width="600" height="400">
                     <div class="card-overlay"><h3>Beds</h3></div>
                 </div>
             </a>
 
             <a href="product-list.php?category=table" class="category-link">
                 <div class="card category-card">
-                    <img src="https://images.unsplash.com/photo-1604578762246-41134e37f9cc?auto=format&fit=crop&w=600&q=80" alt="Tables" loading="lazy" decoding="async" width="600" height="400">
+                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("table")); ?>" alt="Tables" loading="lazy" decoding="async" width="600" height="400">
                     <div class="card-overlay"><h3>Table</h3></div>
                 </div>
             </a>
 
             <a href="product-list.php?category=chair" class="category-link">
                 <div class="card category-card">
-                    <img src="https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=600&q=80" alt="Chairs" loading="lazy" decoding="async" width="600" height="400">
+                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("chair")); ?>" alt="Chairs" loading="lazy" decoding="async" width="600" height="400">
                     <div class="card-overlay"><h3>Chair</h3></div>
                 </div>
             </a>
 
             <a href="product-list.php?category=table" class="category-link">
                 <div class="card category-card">
-                    <img src="../uploads/categories/subcategory_1778688953_8301.jpg" alt="Luxury Tables" loading="lazy" decoding="async" width="600" height="400">
+                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("table")); ?>" alt="Luxury Tables" loading="lazy" decoding="async" width="600" height="400">
                     <div class="card-overlay"><h3>Luxury Tables</h3></div>
                 </div>
             </a>
 
             <a href="product-list.php?category=chair" class="category-link">
                 <div class="card category-card">
-                    <img src="../uploads/categories/subcategory_1778688701_1622.jpg" alt="Premium Chairs" loading="lazy" decoding="async" width="600" height="400">
+                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("chair")); ?>" alt="Premium Chairs" loading="lazy" decoding="async" width="600" height="400">
                     <div class="card-overlay"><h3>Premium Chairs</h3></div>
                 </div>
             </a>

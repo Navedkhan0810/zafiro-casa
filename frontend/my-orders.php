@@ -2,6 +2,7 @@
 session_start();
 include("../backend/config/db.php");
 include_once("../backend/includes/user_auth.php");
+include_once("../backend/includes/image_paths.php");
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: auth.php");
@@ -9,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $userId = (int) $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT o.*, p.name, p.image, p.price FROM orders o LEFT JOIN products p ON p.id = o.product_id WHERE o.user_id = ? ORDER BY o.order_date DESC");
+$stmt = $conn->prepare("SELECT o.*, p.name, p.image, p.price, oi.product_image AS order_item_image FROM orders o LEFT JOIN products p ON p.id = o.product_id LEFT JOIN order_items oi ON oi.order_id = COALESCE(NULLIF(o.order_id, ''), NULLIF(o.order_code, ''), o.id) WHERE o.user_id = ? GROUP BY o.id ORDER BY o.order_date DESC");
 $stmt->bind_param("i", $userId);
 $stmt->execute();
 $orders = $stmt->get_result();
@@ -34,7 +35,7 @@ include("../backend/includes/header.php");
         <?php if ($orders && $orders->num_rows > 0): ?>
             <?php while ($order = $orders->fetch_assoc()): ?>
                 <article class="order-card">
-                    <img class="order-product-img" src="<?php echo htmlspecialchars($order['image'] ?? ''); ?>" alt="<?php echo htmlspecialchars($order['name'] ?? 'Product'); ?>">
+                    <img class="order-product-img" src="<?php echo htmlspecialchars(zafiroPublicImageUrl($order['order_item_image'] ?: ($order['image'] ?? ''))); ?>" alt="<?php echo htmlspecialchars($order['name'] ?? 'Product'); ?>">
                     <div class="order-details">
                         <h3><?php echo htmlspecialchars($order['name'] ?? 'Product unavailable'); ?></h3>
                         <?php $displayOrderId = $order['order_id'] ?: ($order['order_code'] ?: $order['id']); ?>

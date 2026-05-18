@@ -3,6 +3,7 @@ session_start();
 include("../backend/config/db.php");
 include_once("../backend/includes/user_auth.php");
 include_once("../backend/includes/csrf.php");
+include_once("../backend/includes/image_paths.php");
 
 if (!isset($_SESSION['user_id'])) {
     $_SESSION['auth_message'] = 'Please sign in to edit your profile.';
@@ -103,7 +104,7 @@ include("../backend/includes/header.php");
     <section class="account-card edit-profile-card">
         <div class="edit-profile-head">
             <div class="edit-profile-media">
-                    <img class="profile-image-preview edit-profile-image adjustable-profile-image <?php echo empty($user['profile_image']) ? 'is-hidden' : ''; ?>" id="profileImagePreview" src="<?php echo htmlspecialchars($user['profile_image'] ?? ''); ?>" alt="Profile image" data-profile-adjust-preview data-position-x="<?php echo htmlspecialchars($user['profile_image_position_x'] ?? '50'); ?>" data-position-y="<?php echo htmlspecialchars($user['profile_image_position_y'] ?? '50'); ?>" data-zoom="<?php echo htmlspecialchars($user['profile_image_zoom'] ?? '1'); ?>">
+                    <img class="profile-image-preview edit-profile-image adjustable-profile-image <?php echo empty($user['profile_image']) ? 'is-hidden' : ''; ?>" id="profileImagePreview" src="<?php echo htmlspecialchars(zafiroPublicImageUrl($user['profile_image'] ?? '')); ?>" alt="Profile image" data-profile-adjust-preview data-position-x="<?php echo htmlspecialchars($user['profile_image_position_x'] ?? '50'); ?>" data-position-y="<?php echo htmlspecialchars($user['profile_image_position_y'] ?? '50'); ?>" data-zoom="<?php echo htmlspecialchars($user['profile_image_zoom'] ?? '1'); ?>">
                 <div class="account-avatar edit-profile-avatar <?php echo !empty($user['profile_image']) ? 'is-hidden' : ''; ?>" id="profileDefaultAvatar"><i class="fa-regular fa-circle-user"></i></div>
             </div>
             <div>
@@ -114,6 +115,7 @@ include("../backend/includes/header.php");
         </div>
         <?php if ($message): ?><div class="auth-alert success"><?php echo htmlspecialchars($message); ?></div><?php endif; ?>
         <form action="edit-profile.php" method="POST" enctype="multipart/form-data">
+            <?php echo csrf_field(); ?>
             <div class="profile-form-grid edit-profile-form-grid">
                 <input type="text" name="full_name" placeholder="Full Name" value="<?php echo htmlspecialchars($user['full_name'] ?? ''); ?>" required>
                 <input type="text" name="username" placeholder="Username" value="<?php echo htmlspecialchars($user['username'] ?? ''); ?>" required>

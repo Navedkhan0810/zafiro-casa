@@ -1,6 +1,7 @@
 <?php
 session_start();
 include_once("../backend/includes/user_auth.php");
+include_once("../backend/includes/image_paths.php");
 $profileMessage = $_SESSION['profile_message'] ?? '';
 unset($_SESSION['profile_message']);
 $isLoggedIn = isset($_SESSION['user_id']);
@@ -46,7 +47,7 @@ include("../backend/includes/header.php");
         <div class="account-user profile-card">
             <?php if ($isLoggedIn && $profileImage): ?>
                 <div class="profile-avatar-wrapper has-image">
-                    <img src="<?php echo htmlspecialchars($profileImage); ?>" alt="Profile image" data-profile-adjust-preview data-position-x="<?php echo htmlspecialchars($profileImageX); ?>" data-position-y="<?php echo htmlspecialchars($profileImageY); ?>" data-zoom="<?php echo htmlspecialchars($profileImageZoom); ?>">
+                    <img src="<?php echo htmlspecialchars(zafiroPublicImageUrl($profileImage)); ?>" alt="Profile image" data-profile-adjust-preview data-position-x="<?php echo htmlspecialchars($profileImageX); ?>" data-position-y="<?php echo htmlspecialchars($profileImageY); ?>" data-zoom="<?php echo htmlspecialchars($profileImageZoom); ?>">
                 </div>
             <?php else: ?>
                 <div class="profile-avatar-placeholder">

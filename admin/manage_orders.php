@@ -1,6 +1,8 @@
 <?php
 include("auth.php");
 include("../backend/config/db.php");
+include_once("../backend/includes/admin_reports.php");
+include_once("../backend/includes/image_paths.php");
 
 $message = "";
 $messageType = "";
@@ -148,6 +150,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt->bind_param("sss", $newStatus, $orderKey, $orderKey);
         $message = $stmt->execute() ? "Order status updated." : "Order status could not be updated.";
         $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+        if ($stmt->affected_rows >= 0) adminReportLog($conn, "update_order_status", "Updated order status to " . $newStatus . ".", "order", $orderKey, $orderKey);
     }
 
     if ($orderKey !== "" && $action === "update_payment_status") {
@@ -157,6 +160,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt->bind_param("sss", $newStatus, $orderKey, $orderKey);
         $message = $stmt->execute() ? "Payment status updated." : "Payment status could not be updated.";
         $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+        if ($stmt->affected_rows >= 0) adminReportLog($conn, "update_order_status", "Updated payment status to " . $newStatus . ".", "order", $orderKey, $orderKey);
     }
 
     if ($orderKey !== "" && $action === "delete_order") {
@@ -168,6 +172,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $itemStmt->execute();
         $message = $deleted ? "Order deleted successfully." : "Order could not be deleted.";
         $messageType = $deleted ? "success" : "error";
+        if ($deleted) adminReportLog($conn, "delete_order", "Deleted order " . $orderKey . ".", "order", $orderKey, $orderKey);
     }
 }
 
@@ -368,7 +373,7 @@ include("includes/admin_sidebar.php");
                 ?>
                 <article class="admin-order-card">
                     <div class="admin-order-product">
-                        <img src="<?php echo htmlspecialchars($firstItem["product_image"] ?: "../assets/images/placeholder.jpg"); ?>" alt="<?php echo htmlspecialchars($firstItem["product_name"] ?? "Product"); ?>" loading="lazy" decoding="async" width="180" height="150">
+                        <img src="<?php echo htmlspecialchars(zafiroPublicImageUrl($firstItem["product_image"] ?? "")); ?>" alt="<?php echo htmlspecialchars($firstItem["product_name"] ?? "Product"); ?>" loading="lazy" decoding="async" width="180" height="150">
                         <div>
                             <span><?php echo htmlspecialchars($order["order_key"]); ?></span>
                             <h2><?php echo htmlspecialchars($firstItem["product_name"] ?? "Order Items"); ?></h2>

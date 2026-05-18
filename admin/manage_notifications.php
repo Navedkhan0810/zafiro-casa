@@ -1,6 +1,7 @@
 <?php
 include("auth.php");
 include("../backend/config/db.php");
+include_once("../backend/includes/admin_reports.php");
 
 $message = "";
 $messageType = "";
@@ -15,6 +16,12 @@ $conn->query("CREATE TABLE IF NOT EXISTS notifications (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 $conn->query("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'");
+$conn->query("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS target_type VARCHAR(50) NULL");
+$conn->query("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS target_id VARCHAR(100) NULL");
+$conn->query("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link_url VARCHAR(255) NULL");
+
+$productOptions = $conn->query("SELECT id, name FROM products ORDER BY name ASC LIMIT 200");
+$orderOptions = $conn->query("SELECT COALESCE(NULLIF(order_id, ''), NULLIF(order_code, ''), id) AS order_ref FROM orders ORDER BY order_date DESC, id DESC LIMIT 200");
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $action = $_POST["action"] ?? "create";
@@ -24,6 +31,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt = $conn->prepare("DELETE FROM notifications WHERE id = ?");
         $stmt->bind_param("i", $id);
         $stmt->execute();
+        adminReportLog($conn, "delete_notification", "Deleted notification #" . $id . ".", "notification", $id);
         header("Location: manage_notifications.php");
         exit;
     }
@@ -40,16 +48,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $title = trim($_POST["title"] ?? "");
     $body = trim($_POST["message"] ?? "");
-    $type = trim($_POST["type"] ?? "offer");
+    $type = trim($_POST["type"] ?? "general");
+    $targetType = "";
+    $targetId = "";
+    $linkUrl = trim($_POST["link_url"] ?? "");
+    if (in_array($type, ["offer", "product"], true)) {
+        $targetType = "product";
+        $targetId = trim($_POST["product_id"] ?? "");
+        if ($linkUrl === "" && $targetId !== "") $linkUrl = "product.php?id=" . (int) $targetId;
+    } elseif ($type === "order") {
+        $targetType = "order";
+        $targetId = trim($_POST["order_id"] ?? "");
+        if ($linkUrl === "" && $targetId !== "") $linkUrl = "order-tracking.php?order_id=" . rawurlencode($targetId);
+    } else {
+        $targetType = "general";
+    }
 
     if ($title === "" || $body === "") {
         $message = "Title and message are required.";
         $messageType = "error";
     } else {
-        $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (NULL, ?, ?, ?)");
-        $stmt->bind_param("sss", $title, $body, $type);
+        $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, message, type, target_type, target_id, link_url) VALUES (NULL, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $title, $body, $type, $targetType, $targetId, $linkUrl);
         $message = $stmt->execute() ? "Notification sent to all users." : "Notification could not be sent.";
         $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+        if ($stmt->affected_rows > 0) adminReportLog($conn, "send_notification", "Sent notification: " . $title, "notification", $stmt->insert_id, $title);
     }
 }
 
@@ -65,7 +88,10 @@ include("includes/admin_sidebar.php");
         <input type="hidden" name="action" value="create">
         <div class="admin-form-grid">
             <label>Title<input type="text" name="title" required></label>
-            <label>Type<select name="type"><option value="offer">Offer</option><option value="sale">Sale</option><option value="product">New Product</option><option value="order">Order Update</option><option value="return">Return/Refund</option></select></label>
+            <label>Notification Type<select name="type" id="notificationTypeSelect"><option value="offer">Offer</option><option value="product">Product</option><option value="order">Order</option><option value="general">General</option></select></label>
+            <label id="notificationProductTarget">Target Product<select name="product_id" id="notificationProductSelect"><option value="">Select product</option><?php while ($product = $productOptions->fetch_assoc()): ?><option value="<?php echo (int) $product["id"]; ?>"><?php echo htmlspecialchars($product["name"]); ?></option><?php endwhile; ?></select></label>
+            <label id="notificationOrderTarget">Target Order<select name="order_id" id="notificationOrderSelect"><option value="">Select order</option><?php while ($order = $orderOptions->fetch_assoc()): ?><option value="<?php echo htmlspecialchars($order["order_ref"]); ?>"><?php echo htmlspecialchars($order["order_ref"]); ?></option><?php endwhile; ?></select></label>
+            <label>Custom Link<input type="text" name="link_url" id="notificationLinkInput" placeholder="Auto generated from selected target"></label>
             <label class="admin-form-wide">Message<textarea name="message" required></textarea></label>
         </div>
         <button type="submit" class="admin-btn admin-submit-btn">Send to All Users</button>

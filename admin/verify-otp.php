@@ -8,6 +8,14 @@ if (empty($_SESSION["admin_reset_id"]) || empty($_SESSION["admin_reset_email"]))
     exit;
 }
 
+if (empty($_SESSION["admin_reset_expires"]) || time() > (int) $_SESSION["admin_reset_expires"]) {
+    unset($_SESSION["admin_reset_id"], $_SESSION["admin_reset_email"], $_SESSION["admin_reset_verified"], $_SESSION["admin_reset_expires"]);
+    $_SESSION["admin_reset_message"] = "Reset session expired. Please request a new OTP.";
+    $_SESSION["admin_reset_type"] = "error";
+    header("Location: forgot-password.php");
+    exit;
+}
+
 $message = $_SESSION["admin_reset_message"] ?? "";
 $type = $_SESSION["admin_reset_type"] ?? "";
 unset($_SESSION["admin_reset_message"], $_SESSION["admin_reset_type"]);
@@ -32,10 +40,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         if ($stmt->get_result()->num_rows) {
             $_SESSION["admin_reset_verified"] = true;
+            $_SESSION["admin_reset_expires"] = time() + 600;
             header("Location: reset-password.php");
             exit;
         }
 
+        error_log("Invalid admin reset OTP for admin_id: " . $adminId);
         $message = "Invalid OTP or OTP expired. Please resend OTP.";
         $type = "error";
     }

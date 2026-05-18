@@ -1980,9 +1980,21 @@ header {
 }
 
 .footer-logo {
-    display: grid;
-    gap: 2px;
-    width: max-content;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+    width: 100%;
+}
+
+.footer-logo-crown {
+    display: block;
+    color: #d4af37 !important;
+    font-size: 44px;
+    line-height: 1;
+    margin: 0 auto 8px auto;
+    text-shadow: 0 8px 22px rgba(212, 175, 55, 0.35);
 }
 
 .footer-logo span {
@@ -2000,13 +2012,22 @@ header {
 .footer-brand p {
     max-width: 310px;
     line-height: 1.7;
+    text-align: center;
 }
 
 .footer-socials {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 10px;
     margin-top: 8px;
+}
+
+.footer-brand {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 }
 
 .footer-socials a {
@@ -3723,11 +3744,20 @@ header {
 
 .notification-list {
     display: grid;
-    gap: 14px;
+    gap: 16px;
+}
+
+.notifications-page-wrap {
+    width: 90%;
+    max-width: 1150px;
 }
 
 .notifications-page-card {
-    max-width: 980px;
+    width: 100%;
+    max-width: 1150px;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 22px;
 }
 
 .notifications-page-head {
@@ -3752,18 +3782,22 @@ header {
 
 .notification-card {
     width: 100%;
-    display: block;
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr) auto;
+    gap: 20px;
+    align-items: center;
     text-align: left;
-    padding: 16px;
+    padding: 22px 26px;
     border: 1px solid #eee4d8;
-    border-radius: 16px;
-    background: #faf8f4;
+    border-radius: 18px;
+    background: #ffffff;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .notification-card.unread {
     border-color: #d4af37;
+    background: #fffaf0;
     box-shadow: 0 10px 22px rgba(45, 35, 25, 0.1);
 }
 
@@ -3772,15 +3806,79 @@ header {
     box-shadow: 0 14px 26px rgba(45, 35, 25, 0.12);
 }
 
-.notification-card span {
+.notification-type-icon {
+    width: 70px;
+    height: 70px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #f3ead9;
     color: #b58a3b;
-    font-size: 12px;
-    font-weight: 800;
+    font-size: 28px;
+}
+
+.notification-type-icon.product,
+.notification-type-icon.general {
+    background: #eeeeee;
+    color: #222;
+}
+
+.notification-card-body {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+}
+
+.notification-type-badge {
+    width: max-content;
+    padding: 6px 10px;
+    border-radius: 7px;
+    background: #d4af37;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .7px;
     text-transform: uppercase;
 }
 
 .notification-card h3 {
-    margin: 8px 0;
+    margin: 0;
+    color: #111;
+}
+
+.notification-card p {
+    margin: 0;
+    color: #2b2b2b;
+}
+
+.notification-card small {
+    color: #555;
+    font-weight: 700;
+}
+
+.notification-card-side {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    color: #111;
+}
+
+.notification-read-badge {
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #f3ead9;
+    color: #8a6a20;
+    font-weight: 900;
+}
+
+.notification-card:not(.unread) .notification-read-badge {
+    background: #eeeeee;
+    color: #222;
+}
+
+.notification-read-all {
+    background: #111 !important;
+    color: #fff !important;
 }
 
 .order-card {
@@ -3976,6 +4074,7 @@ header {
         overflow-x: auto !important;
         white-space: nowrap !important;
     }
+
 }
 
 /* Responsive safety layer */
@@ -4170,6 +4269,7 @@ iframe {
     .cart-item,
     .checkout-item,
     .order-card,
+    .notification-card,
     .notifications-page-head,
     .footer-newsletter,
     .home-decor-head {
@@ -4177,6 +4277,21 @@ iframe {
         flex-direction: column;
         align-items: stretch;
         text-align: left;
+    }
+
+    .notification-card {
+        grid-template-columns: 58px minmax(0, 1fr);
+    }
+
+    .notification-type-icon {
+        width: 54px;
+        height: 54px;
+        font-size: 22px;
+    }
+
+    .notification-card-side {
+        grid-column: 1 / -1;
+        justify-content: space-between;
     }
 
     .cart-item img,

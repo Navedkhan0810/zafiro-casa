@@ -2,6 +2,7 @@
 include("auth.php");
 include("../backend/config/db.php");
 include_once("../backend/includes/product_images.php");
+include_once("../backend/includes/admin_reports.php");
 
 $message = "";
 $messageType = "";
@@ -26,10 +27,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $productId = (int) ($_POST["product_id"] ?? 0);
 
     if ($action === "delete" && $productId > 0) {
-        $imageStmt = $conn->prepare("SELECT image FROM products WHERE id = ? LIMIT 1");
+        $imageStmt = $conn->prepare("SELECT name, image FROM products WHERE id = ? LIMIT 1");
         $imageStmt->bind_param("i", $productId);
         $imageStmt->execute();
         $imageRow = $imageStmt->get_result()->fetch_assoc();
+        $productName = $imageRow["name"] ?? "";
 
         $stmt = $conn->prepare("DELETE FROM products WHERE id = ?");
         $stmt->bind_param("i", $productId);
@@ -46,6 +48,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $imageDelete->bind_param("i", $productId);
                 $imageDelete->execute();
             }
+            adminReportLog($conn, "delete_product", "Deleted product: " . ($productName ?: "#" . $productId), "product", $productId, $productName);
             $message = "Product deleted successfully.";
             $messageType = "success";
         }
@@ -56,6 +59,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt = $conn->prepare("UPDATE products SET status = ? WHERE id = ?");
         $stmt->bind_param("si", $newStatus, $productId);
         if ($stmt->execute()) {
+            adminReportLog($conn, "change_product_status", "Changed product status to " . $newStatus . ".", "product", $productId);
             $message = "Product status updated.";
             $messageType = "success";
         }
@@ -86,9 +90,16 @@ if ($search !== "") {
 }
 
 if ($category !== "") {
-    $where[] = "category = ?";
-    $params[] = $category;
-    $types .= "s";
+    [$filterType, $filterId] = array_pad(explode(":", $category, 2), 2, "");
+    if ($filterType === "cat" && (int) $filterId > 0) {
+        $where[] = "category_id = ?";
+        $params[] = (int) $filterId;
+        $types .= "i";
+    } elseif ($filterType === "sub" && (int) $filterId > 0) {
+        $where[] = "subcategory_id = ?";
+        $params[] = (int) $filterId;
+        $types .= "i";
+    }
 }
 
 if ($status === "active" || $status === "inactive") {
@@ -129,7 +140,7 @@ $stmt->bind_param($types . "ii", ...$queryParams);
 $stmt->execute();
 $products = $stmt->get_result();
 
-$categories = $conn->query("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category <> '' ORDER BY category ASC");
+$categories = $conn->query("SELECT CONCAT('cat:', id) AS filter_value, category_name AS label FROM categories WHERE parent_id IS NULL OR parent_id = 0 UNION SELECT CONCAT('sub:', id) AS filter_value, subcategory_name AS label FROM subcategories ORDER BY label ASC");
 
 include("includes/admin_header.php");
 include("includes/admin_sidebar.php");
@@ -155,7 +166,7 @@ include("includes/admin_sidebar.php");
             <select name="category">
                 <option value="">All Categories</option>
                 <?php while ($cat = $categories->fetch_assoc()): ?>
-                    <option value="<?php echo htmlspecialchars($cat['category']); ?>" <?php echo $category === $cat['category'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($cat['category']); ?></option>
+                    <option value="<?php echo htmlspecialchars($cat['filter_value']); ?>" <?php echo $category === $cat['filter_value'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($cat['label']); ?></option>
                 <?php endwhile; ?>
             </select>
             <select name="status">

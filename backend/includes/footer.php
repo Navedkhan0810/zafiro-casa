@@ -2,6 +2,7 @@
     <div class="footer-inner">
         <section class="footer-brand">
             <a class="footer-logo" href="index.php">
+                <i class="fa-solid fa-crown footer-logo-crown" aria-hidden="true"></i>
                 <span>Zafiro Casa</span>
                 <small>Luxury Living</small>
             </a>

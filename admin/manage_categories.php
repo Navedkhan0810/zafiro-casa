@@ -1,6 +1,8 @@
 <?php
 include("auth.php");
 include("../backend/config/db.php");
+include_once("../backend/includes/admin_reports.php");
+include_once("../backend/includes/category_images.php");
 
 $message = "";
 $messageType = "";
@@ -44,7 +46,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if ($action === "save") {
         $name = trim($_POST["category_name"] ?? "");
-        $slug = trim($_POST["slug"] ?? "");
+        $slug = zafiroCategorySlug($_POST["slug"] ?? "");
         $oldName = trim($_POST["old_category_name"] ?? "");
         $description = trim($_POST["description"] ?? "");
         $isFeatured = isset($_POST["is_featured"]) ? 1 : 0;
@@ -75,11 +77,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 }
                 $message = $updated ? "Category updated successfully." : "Category could not be updated.";
                 $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+                if ($updated) adminReportLog($conn, "edit_category", "Updated category: " . $name, "category", $categoryId, $name);
             } else {
                 $stmt = $conn->prepare("INSERT INTO categories (category_name, slug, parent_id, description, category_image, is_featured, status) VALUES (?, ?, NULL, ?, ?, ?, ?)");
                 $stmt->bind_param("ssssis", $name, $slug, $description, $imagePath, $isFeatured, $status);
                 $message = $stmt->execute() ? "Category added successfully." : "Category could not be added.";
                 $messageType = $stmt->affected_rows > 0 ? "success" : "error";
+                if ($stmt->affected_rows > 0) adminReportLog($conn, "add_category", "Added category: " . $name, "category", $stmt->insert_id, $name);
             }
         }
     }
@@ -90,6 +94,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt->bind_param("si", $newStatus, $categoryId);
         $message = $stmt->execute() ? "Category status updated." : "Status could not be updated.";
         $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+        if ($stmt->affected_rows >= 0) adminReportLog($conn, "edit_category", "Changed category status to " . $newStatus . ".", "category", $categoryId);
     }
 
     if ($action === "delete" && $categoryId > 0) {
@@ -99,8 +104,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $category = $stmt->get_result()->fetch_assoc();
         $categoryName = $category["category_name"] ?? "";
 
-        $countStmt = $conn->prepare("SELECT COUNT(*) AS total FROM products WHERE category = ?");
-        $countStmt->bind_param("s", $categoryName);
+        $countStmt = $conn->prepare("SELECT COUNT(*) AS total FROM products WHERE category_id = ?");
+        $countStmt->bind_param("i", $categoryId);
         $countStmt->execute();
         $productCount = (int) ($countStmt->get_result()->fetch_assoc()["total"] ?? 0);
 
@@ -112,6 +117,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $deleteStmt->bind_param("i", $categoryId);
             $message = $deleteStmt->execute() ? "Category deleted successfully." : "Category could not be deleted.";
             $messageType = $deleteStmt->affected_rows > 0 ? "success" : "error";
+            if ($deleteStmt->affected_rows > 0) adminReportLog($conn, "delete_category", "Deleted category: " . $categoryName, "category", $categoryId, $categoryName);
         }
     }
 }
@@ -131,7 +137,7 @@ if ($search !== "") {
     $params[] = $term;
     $types .= "ss";
 }
-$where[] = "parent_id IS NULL";
+$where[] = "(parent_id IS NULL OR parent_id = 0)";
 if ($status === "active" || $status === "inactive") {
     $where[] = "status = ?";
     $params[] = $status;
@@ -140,7 +146,7 @@ if ($status === "active" || $status === "inactive") {
 if ($featured === "1") $where[] = "is_featured = 1";
 
 $orderBy = $sort === "oldest" ? "created_at ASC, id ASC" : "created_at DESC, id DESC";
-$sql = "SELECT c.*, (SELECT COUNT(*) FROM products p WHERE p.category = c.category_name) AS product_count FROM categories c" . ($where ? " WHERE " . implode(" AND ", $where) : "") . " ORDER BY " . $orderBy;
+$sql = "SELECT c.*, (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) AS product_count FROM categories c" . ($where ? " WHERE " . implode(" AND ", $where) : "") . " ORDER BY " . $orderBy;
 $stmt = $conn->prepare($sql);
 if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();

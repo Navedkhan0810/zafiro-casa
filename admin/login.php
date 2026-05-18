@@ -2,8 +2,11 @@
 session_start();
 include("../backend/config/db.php");
 include_once("../backend/includes/csrf.php");
+include_once("../backend/includes/admin_reports.php");
 
 $error = "";
+$success = $_SESSION["admin_login_message"] ?? "";
+unset($_SESSION["admin_login_message"]);
 
 $conn->query("CREATE TABLE IF NOT EXISTS admins (
     admin_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -38,47 +41,49 @@ $conn->query("CREATE TABLE IF NOT EXISTS admin_login_activity (
     is_active TINYINT(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-$legacyAdmin = $conn->prepare("SELECT admin_id, password FROM admins WHERE username = 'admin' OR email = 'zafirocasaadmin@gmail.com' LIMIT 1");
-$legacyAdmin->execute();
-$legacyRow = $legacyAdmin->get_result()->fetch_assoc();
-if ($legacyRow && password_verify("admin123", $legacyRow["password"])) {
-    $lockedHash = password_hash(bin2hex(random_bytes(24)), PASSWORD_DEFAULT);
-    $lockStmt = $conn->prepare("UPDATE admins SET password = ? WHERE admin_id = ?");
-    $lockStmt->bind_param("si", $lockedHash, $legacyRow["admin_id"]);
-    $lockStmt->execute();
-}
-
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (!csrf_validate()) {
         $error = "Invalid security token. Please refresh and try again.";
     } else {
-    $login = trim($_POST["login"] ?? "");
-    $password = $_POST["password"] ?? "";
+        $login = trim($_POST["login"] ?? "");
+        $password = $_POST["password"] ?? "";
 
-    $stmt = $conn->prepare("SELECT * FROM admins WHERE username = ? OR email = ? LIMIT 1");
-    $stmt->bind_param("ss", $login, $login);
-    $stmt->execute();
-    $admin = $stmt->get_result()->fetch_assoc();
+        $stmt = $conn->prepare("SELECT admin_id, name, email, username, password FROM admins WHERE username = ? OR email = ? LIMIT 1");
+        if (!$stmt) {
+            error_log("Admin login prepare failed: " . $conn->error);
+            $error = "Login query error: " . htmlspecialchars($conn->error, ENT_QUOTES, "UTF-8");
+        } else {
+            $stmt->bind_param("ss", $login, $login);
+            if (!$stmt->execute()) {
+                error_log("Admin login query failed: " . $stmt->error);
+                $error = "Login query error: " . htmlspecialchars($stmt->error, ENT_QUOTES, "UTF-8");
+            } else {
+                $admin = $stmt->get_result()->fetch_assoc();
 
-    if ($admin && password_verify($password, $admin["password"])) {
-        $_SESSION["admin_id"] = $admin["admin_id"];
-        $_SESSION["admin_name"] = $admin["name"];
-        $_SESSION["admin_email"] = $admin["email"];
-        $_SESSION["admin_username"] = $admin["username"];
-        $sessionId = session_id();
-        $ip = $_SERVER["REMOTE_ADDR"] ?? "";
-        $agent = substr($_SERVER["HTTP_USER_AGENT"] ?? "", 0, 255);
-        $stmt = $conn->prepare("UPDATE admins SET last_login = NOW() WHERE admin_id = ?");
-        $stmt->bind_param("i", $admin["admin_id"]);
-        $stmt->execute();
-        $stmt = $conn->prepare("INSERT INTO admin_login_activity (admin_id, session_id, ip_address, user_agent) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("isss", $admin["admin_id"], $sessionId, $ip, $agent);
-        $stmt->execute();
-        header("Location: dashboard.php");
-        exit;
-    }
+                if ($admin && password_verify($password, $admin["password"])) {
+                    session_regenerate_id(true);
+                    $_SESSION["admin_id"] = (int) $admin["admin_id"];
+                    $_SESSION["admin_name"] = $admin["name"];
+                    $_SESSION["admin_email"] = $admin["email"];
+                    $_SESSION["admin_username"] = $admin["username"];
+                    $sessionId = session_id();
+                    $ip = $_SERVER["REMOTE_ADDR"] ?? "";
+                    $agent = substr($_SERVER["HTTP_USER_AGENT"] ?? "", 0, 255);
+                    $update = $conn->prepare("UPDATE admins SET last_login = NOW() WHERE admin_id = ?");
+                    $update->bind_param("i", $admin["admin_id"]);
+                    $update->execute();
+                    $activity = $conn->prepare("INSERT INTO admin_login_activity (admin_id, session_id, ip_address, user_agent) VALUES (?, ?, ?, ?)");
+                    $activity->bind_param("isss", $admin["admin_id"], $sessionId, $ip, $agent);
+                    $activity->execute();
+                    adminReportLog($conn, "admin_login", "Admin logged in.", "admin", $admin["admin_id"], $admin["username"]);
+                    header("Location: dashboard.php");
+                    exit;
+                }
 
-    $error = "Invalid username/email or password.";
+                error_log("Admin authentication failed for login: " . $login);
+                $error = "Invalid username/email or password.";
+            }
+        }
     }
 }
 ?>
@@ -100,12 +105,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <?php if ($error): ?>
                 <div class="admin-alert"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
+            <?php if ($success): ?>
+                <div class="admin-alert success"><?php echo htmlspecialchars($success); ?></div>
+            <?php endif; ?>
 
-            <form method="POST" action="login.php" class="admin-login-form">
+            <form method="POST" action="login.php" class="admin-login-form" autocomplete="off">
                 <?php echo csrf_field(); ?>
-                <input type="text" name="login" placeholder="Username or Email" required>
+                <input type="text" name="login" value="" placeholder="Username or Email" autocomplete="new-password" required>
                 <div class="admin-password-wrap">
-                    <input type="password" name="password" id="adminPassword" placeholder="Password" required>
+                    <input type="password" name="password" id="adminPassword" value="" placeholder="Password" autocomplete="new-password" required>
                     <button type="button" id="toggleAdminPassword">Show</button>
                 </div>
                 <button type="submit" class="admin-btn">Login</button>

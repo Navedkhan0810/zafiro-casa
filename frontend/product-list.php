@@ -20,20 +20,56 @@ function productListColumnExists($conn, $columnName) {
 
 if ($category !== '') {
     $slug = strtolower($category);
-    $categoryJoin = "c.category_name = p.category";
-    if (productListColumnExists($conn, "category_id")) $categoryJoin .= " OR p.category_id = c.id";
-    if (productListColumnExists($conn, "subcategory_id")) $categoryJoin .= " OR p.subcategory_id = c.id";
+    $categoryAliases = [
+        "study" => "study-office",
+        "office" => "study-office",
+        "modular kitchen" => "modular-kitchen",
+        "decor" => "decor-furnishing"
+    ];
+    $slug = $categoryAliases[$slug] ?? $slug;
+    $nameLookup = str_replace("-", " ", $slug);
+    $categoryStmt = $conn->prepare("SELECT id, 0 AS is_subcategory FROM categories WHERE (LOWER(slug) = ? OR LOWER(category_name) = ?) AND (parent_id IS NULL OR parent_id = 0) UNION SELECT id, 1 AS is_subcategory FROM subcategories WHERE LOWER(slug) = ? OR LOWER(subcategory_name) = ? LIMIT 1");
+    $categoryStmt->bind_param("ssss", $slug, $nameLookup, $slug, $nameLookup);
+    $categoryStmt->execute();
+    $categoryRow = $categoryStmt->get_result()->fetch_assoc();
+    $categoryStmt->close();
 
-    $countStmt = $conn->prepare("SELECT COUNT(DISTINCT p.id) AS total FROM products p INNER JOIN categories c ON ($categoryJoin) WHERE LOWER(c.slug) = ? AND LOWER(COALESCE(p.status, 'active')) = 'active'");
-    $countStmt->bind_param("s", $slug);
-    $countStmt->execute();
-    $totalProducts = (int)($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
-    $countStmt->close();
+    if ($categoryRow) {
+        $categoryId = (int) $categoryRow["id"];
+        $isSubcategory = !empty($categoryRow["is_subcategory"]);
+        $filterColumn = $isSubcategory ? "subcategory_id" : "category_id";
+        $allowedDiningSubcategories = [26, 27, 28];
+        $allowedModularKitchenSubcategories = [30, 31];
 
-    $stmt = $conn->prepare("SELECT DISTINCT p.* FROM products p INNER JOIN categories c ON ($categoryJoin) WHERE LOWER(c.slug) = ? AND LOWER(COALESCE(p.status, 'active')) = 'active' ORDER BY p.id DESC LIMIT ? OFFSET ?");
-    $stmt->bind_param("sii", $slug, $perPage, $offset);
-    $stmt->execute();
-    $result = $stmt->get_result();
+        if (!$isSubcategory && $slug === "dining") {
+            $placeholders = implode(",", array_fill(0, count($allowedDiningSubcategories), "?"));
+            $countStmt = $conn->prepare("SELECT COUNT(*) AS total FROM products p WHERE (p.subcategory_id IN ($placeholders) OR (p.category_id = ? AND p.subcategory_id IS NULL)) AND LOWER(COALESCE(p.status, 'active')) = 'active'");
+            $countStmt->bind_param("iiii", $allowedDiningSubcategories[0], $allowedDiningSubcategories[1], $allowedDiningSubcategories[2], $categoryId);
+        } elseif (!$isSubcategory && $slug === "modular-kitchen") {
+            $placeholders = implode(",", array_fill(0, count($allowedModularKitchenSubcategories), "?"));
+            $countStmt = $conn->prepare("SELECT COUNT(*) AS total FROM products p WHERE (p.subcategory_id IN ($placeholders) OR (p.category_id = ? AND p.subcategory_id IS NULL)) AND LOWER(COALESCE(p.status, 'active')) = 'active'");
+            $countStmt->bind_param("iii", $allowedModularKitchenSubcategories[0], $allowedModularKitchenSubcategories[1], $categoryId);
+        } else {
+            $countStmt = $conn->prepare("SELECT COUNT(*) AS total FROM products p WHERE p.$filterColumn = ? AND LOWER(COALESCE(p.status, 'active')) = 'active'");
+            $countStmt->bind_param("i", $categoryId);
+        }
+        $countStmt->execute();
+        $totalProducts = (int)($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
+        $countStmt->close();
+
+        if (!$isSubcategory && $slug === "dining") {
+            $stmt = $conn->prepare("SELECT p.* FROM products p WHERE (p.subcategory_id IN ($placeholders) OR (p.category_id = ? AND p.subcategory_id IS NULL)) AND LOWER(COALESCE(p.status, 'active')) = 'active' ORDER BY p.id DESC LIMIT ? OFFSET ?");
+            $stmt->bind_param("iiiiii", $allowedDiningSubcategories[0], $allowedDiningSubcategories[1], $allowedDiningSubcategories[2], $categoryId, $perPage, $offset);
+        } elseif (!$isSubcategory && $slug === "modular-kitchen") {
+            $stmt = $conn->prepare("SELECT p.* FROM products p WHERE (p.subcategory_id IN ($placeholders) OR (p.category_id = ? AND p.subcategory_id IS NULL)) AND LOWER(COALESCE(p.status, 'active')) = 'active' ORDER BY p.id DESC LIMIT ? OFFSET ?");
+            $stmt->bind_param("iiiii", $allowedModularKitchenSubcategories[0], $allowedModularKitchenSubcategories[1], $categoryId, $perPage, $offset);
+        } else {
+            $stmt = $conn->prepare("SELECT p.* FROM products p WHERE p.$filterColumn = ? AND LOWER(COALESCE(p.status, 'active')) = 'active' ORDER BY p.id DESC LIMIT ? OFFSET ?");
+            $stmt->bind_param("iii", $categoryId, $perPage, $offset);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+    }
 }
 ?>
 
@@ -46,7 +82,7 @@ if ($category !== '') {
     <section class="grid product-result-grid">
         <?php if ($result && $result->num_rows > 0): ?>
             <?php while ($row = $result->fetch_assoc()): ?>
-                <?php $cardImage = getProductCardImage($row); ?>
+                <?php $cardImage = getProductCardImage($row, $conn); ?>
                 <div class="card product-card" data-product-id="<?php echo htmlspecialchars($row['id']); ?>" data-product-name="<?php echo htmlspecialchars($row['name']); ?>" data-product-price="<?php echo htmlspecialchars($row['price']); ?>" data-product-image="<?php echo htmlspecialchars($cardImage); ?>" data-product-url="product.php?id=<?php echo htmlspecialchars($row['id']); ?>">
                     <a class="product-card-link product-image-wrap" href="product.php?id=<?php echo htmlspecialchars($row['id']); ?>">
                         <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($row['name']); ?>" loading="lazy" decoding="async" width="600" height="420">

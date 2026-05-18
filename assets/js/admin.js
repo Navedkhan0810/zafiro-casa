@@ -11,18 +11,34 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    var weeklyCanvas = document.getElementById("weeklyStoreChart");
-    if (weeklyCanvas && window.Chart) {
-        var labels = JSON.parse(weeklyCanvas.dataset.labels || "[]");
-        var values = JSON.parse(weeklyCanvas.dataset.values || "[]");
+    initStoreActivityChart();
 
-        new Chart(weeklyCanvas, {
+    function initStoreActivityChart(attempts) {
+        attempts = attempts || 0;
+        var weeklyCanvas = document.getElementById("weeklyStoreChart");
+        if (!weeklyCanvas) return;
+        if (!window.Chart) {
+            if (attempts < 10) setTimeout(function () { initStoreActivityChart(attempts + 1); }, 150);
+            return;
+        }
+
+        var activity = {};
+        try {
+            activity = JSON.parse(weeklyCanvas.dataset.activity || "{}");
+        } catch (error) {
+            activity = {};
+        }
+        var views = ["daily", "weekly", "monthly", "yearly"];
+        var activeView = "daily";
+        var title = document.getElementById("storeActivityTitle");
+
+        var storeChart = new Chart(weeklyCanvas, {
             type: "line",
             data: {
-                labels: labels,
+                labels: activity.daily ? activity.daily.labels : [],
                 datasets: [{
                     label: "Orders",
-                    data: values,
+                    data: activity.daily ? activity.daily.orders : [],
                     borderColor: "#C8A96B",
                     backgroundColor: "rgba(200, 169, 107, 0.18)",
                     fill: true,
@@ -30,13 +46,23 @@ document.addEventListener("DOMContentLoaded", function () {
                     borderWidth: 3,
                     pointRadius: 4,
                     pointBackgroundColor: "#C8A96B"
+                }, {
+                    label: "Sales",
+                    data: activity.daily ? activity.daily.sales : [],
+                    borderColor: "#111827",
+                    backgroundColor: "rgba(17, 24, 39, 0.08)",
+                    fill: false,
+                    tension: 0.42,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointBackgroundColor: "#111827"
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: true }
                 },
                 scales: {
                     x: {
@@ -51,6 +77,24 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             }
         });
+
+        function setChartView(view) {
+            if (!activity[view]) return;
+            activeView = view;
+            storeChart.data.labels = activity[view].labels || [];
+            storeChart.data.datasets[0].data = activity[view].orders || [];
+            storeChart.data.datasets[1].data = activity[view].sales || [];
+            if (title) title.textContent = activity[view].title || "Store Activity";
+            storeChart.update();
+        }
+
+        document.querySelectorAll("[data-chart-view-prev], [data-chart-view-next]").forEach(function (button) {
+            button.addEventListener("click", function () {
+                var index = views.indexOf(activeView);
+                var next = button.hasAttribute("data-chart-view-next") ? index + 1 : index - 1;
+                setChartView(views[(next + views.length) % views.length]);
+            });
+        });
     }
 
     initAdminProductPreview();
@@ -64,6 +108,9 @@ document.addEventListener("DOMContentLoaded", function () {
     initAdminNotifications();
     initAdminNotificationPageClicks();
     initManageNotificationsPage();
+    initReportsFilters();
+    initReportsCharts();
+    initReportsHeatmapTips();
     initAdminSidebarLayout();
     applyAdminProfileImageAdjustments();
 });
@@ -823,6 +870,39 @@ function initManageNotificationsPage() {
     var details = document.getElementById("manageNotificationDetails");
     var title = document.getElementById("manageNotificationTitle");
     var close = document.getElementById("closeManageNotificationModal");
+    var typeSelect = document.getElementById("notificationTypeSelect");
+    var productTarget = document.getElementById("notificationProductTarget");
+    var orderTarget = document.getElementById("notificationOrderTarget");
+    var productSelect = document.getElementById("notificationProductSelect");
+    var orderSelect = document.getElementById("notificationOrderSelect");
+    var linkInput = document.getElementById("notificationLinkInput");
+
+    function syncNotificationLink() {
+        if (!typeSelect || !linkInput) return;
+        if ((typeSelect.value === "offer" || typeSelect.value === "product") && productSelect && productSelect.value) {
+            linkInput.value = "product.php?id=" + productSelect.value;
+        } else if (typeSelect.value === "order" && orderSelect && orderSelect.value) {
+            linkInput.value = "order-tracking.php?order_id=" + encodeURIComponent(orderSelect.value);
+        } else if (typeSelect.value === "general") {
+            linkInput.value = "";
+        }
+    }
+
+    function syncNotificationTargets() {
+        if (!typeSelect || !productTarget || !orderTarget) return;
+        var type = typeSelect.value;
+        productTarget.style.display = (type === "offer" || type === "product") ? "" : "none";
+        orderTarget.style.display = type === "order" ? "" : "none";
+        syncNotificationLink();
+    }
+
+    if (typeSelect) {
+        typeSelect.addEventListener("change", syncNotificationTargets);
+        syncNotificationTargets();
+    }
+    if (productSelect) productSelect.addEventListener("change", syncNotificationLink);
+    if (orderSelect) orderSelect.addEventListener("change", syncNotificationLink);
+
     if (!modal || !details || !title) return;
 
     function openNotification(row) {
@@ -870,5 +950,129 @@ function initManageNotificationsPage() {
 function escapeAdminHtml(value) {
     return String(value).replace(/[&<>"']/g, function (char) {
         return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char];
+    });
+}
+
+function initReportsFilters() {
+    document.querySelectorAll(".admin-main input[type='date'], .admin-main input[type='datetime-local']").forEach(function (input) {
+        ["click", "focus"].forEach(function (eventName) {
+            input.addEventListener(eventName, function () {
+                if (typeof input.showPicker === "function") {
+                    try { input.showPicker(); } catch (error) {}
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll(".admin-main select:not([multiple])").forEach(function (select) {
+        if (select.dataset.enhanced === "1") return;
+        select.dataset.enhanced = "1";
+        select.classList.add("admin-native-select-hidden");
+
+        var custom = document.createElement("div");
+        custom.className = "reports-custom-select admin-premium-select";
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "reports-select-button";
+        button.disabled = select.disabled;
+        var menu = document.createElement("div");
+        menu.className = "reports-select-menu";
+        var items = [];
+
+        function syncButton() {
+            var selected = select.options[select.selectedIndex];
+            button.textContent = selected ? selected.text : "Select";
+            button.disabled = select.disabled;
+            items.forEach(function (node) {
+                node.classList.toggle("active", node.dataset.value === select.value);
+            });
+        }
+
+        Array.prototype.forEach.call(select.options, function (option) {
+            var item = document.createElement("div");
+            item.className = "reports-select-option";
+            item.dataset.value = option.value;
+            item.textContent = option.text;
+            item.addEventListener("click", function () {
+                select.value = option.value;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+                syncButton();
+                custom.classList.remove("open");
+            });
+            items.push(item);
+            menu.appendChild(item);
+        });
+
+        button.addEventListener("click", function (event) {
+            event.stopPropagation();
+            document.querySelectorAll(".admin-premium-select.open").forEach(function (node) {
+                if (node !== custom) node.classList.remove("open");
+            });
+            custom.classList.toggle("open");
+        });
+        select.addEventListener("change", syncButton);
+        document.addEventListener("click", function (event) {
+            if (!custom.contains(event.target)) custom.classList.remove("open");
+        });
+
+        custom.appendChild(button);
+        custom.appendChild(menu);
+        select.insertAdjacentElement("afterend", custom);
+        syncButton();
+    });
+}
+
+function initReportsCharts() {
+    if (!window.Chart) return;
+    var overview = document.getElementById("reportsOverviewChart");
+    if (overview) {
+        var range = document.getElementById("reportsOverviewRange");
+        var chart = new Chart(overview, {
+            type: "line",
+            data: {
+                labels: JSON.parse(overview.dataset.weekLabels || "[]"),
+                datasets: [{ data: JSON.parse(overview.dataset.weekValues || "[]"), borderColor: "#d4af37", backgroundColor: "rgba(212,175,55,.16)", fill: true, tension: .4, pointRadius: 4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+        });
+        if (range) range.addEventListener("change", function () {
+            var month = range.value === "month";
+            chart.data.labels = JSON.parse(overview.dataset[month ? "monthLabels" : "weekLabels"] || "[]");
+            chart.data.datasets[0].data = JSON.parse(overview.dataset[month ? "monthValues" : "weekValues"] || "[]");
+            chart.update();
+        });
+    }
+
+    var distribution = document.getElementById("reportsDistributionChart");
+    if (distribution) {
+        new Chart(distribution, {
+            type: "doughnut",
+            data: {
+                labels: JSON.parse(distribution.dataset.labels || "[]"),
+                datasets: [{ data: JSON.parse(distribution.dataset.values || "[]"), backgroundColor: ["#d4af37", "#111827", "#7F1D1D", "#8a6a20", "#E5E0D8"], borderWidth: 0 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } }, cutout: "64%" }
+        });
+    }
+}
+
+function initReportsHeatmapTips() {
+    var tip;
+    document.querySelectorAll("[data-report-tip]").forEach(function (cell) {
+        cell.addEventListener("mouseenter", function () {
+            tip = document.createElement("div");
+            tip.className = "reports-heat-tooltip";
+            tip.textContent = cell.dataset.reportTip || "";
+            document.body.appendChild(tip);
+        });
+        cell.addEventListener("mousemove", function (event) {
+            if (!tip) return;
+            tip.style.left = event.clientX + 12 + "px";
+            tip.style.top = event.clientY + 12 + "px";
+        });
+        cell.addEventListener("mouseleave", function () {
+            if (tip) tip.remove();
+            tip = null;
+        });
     });
 }

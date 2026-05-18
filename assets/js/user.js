@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
     initCheckoutScrollReset();
     clearGuestCommerceData();
+    clearStaleProductCaches();
     initNavbar();
     initStickyCategoryNav();
     initSmoothLinks();
@@ -817,6 +818,20 @@ function clearGuestCommerceData() {
     ["zafiroCart", "zafiroWishlist", "zafiroOrders", "zafiroBuyNowItem"].forEach(function (key) {
         localStorage.removeItem(key);
     });
+}
+
+function clearStaleProductCaches() {
+    var versionKey = "zafiroProductCacheVersion";
+    var version = "20260517-product-map";
+    if (localStorage.getItem(versionKey) === version) return;
+
+    ["zafiroCart", "zafiroWishlist", "zafiroOrders"].forEach(function (key) {
+        localStorage.removeItem(key);
+        if (getCurrentUserId()) localStorage.removeItem(key + "_" + getCurrentUserId());
+    });
+    localStorage.removeItem("zafiroBuyNowItem");
+    localStorage.removeItem("zafiroRecentlyViewed");
+    localStorage.setItem(versionKey, version);
 }
 
 function initCommerceActions() {
