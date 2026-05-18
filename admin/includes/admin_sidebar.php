@@ -11,6 +11,7 @@
         <a class="<?php echo $currentAdminPage === 'manage_subcategories.php' ? 'active' : ''; ?>" href="manage_subcategories.php"><i class="fa-solid fa-sitemap"></i><span>Manage Subcategories</span></a>
         <a class="<?php echo $currentAdminPage === 'manage_hero_slider.php' ? 'active' : ''; ?>" href="manage_hero_slider.php"><i class="fa-solid fa-house-chimney-window"></i><span>Home Page Editor</span></a>
         <a class="<?php echo $currentAdminPage === 'manage_orders.php' ? 'active' : ''; ?>" href="manage_orders.php"><i class="fa-solid fa-cart-shopping"></i><span>Manage Orders</span></a>
+        <a class="<?php echo $currentAdminPage === 'manage_payments.php' ? 'active' : ''; ?>" href="manage_payments.php"><i class="fa-solid fa-credit-card"></i><span>Payments</span></a>
         <a class="<?php echo $currentAdminPage === 'manage_users.php' ? 'active' : ''; ?>" href="manage_users.php"><i class="fa-solid fa-users"></i><span>Manage Users</span></a>
         <a class="<?php echo $currentAdminPage === 'reviews.php' ? 'active' : ''; ?>" href="reviews.php"><i class="fa-solid fa-star-half-stroke"></i><span>Reviews</span></a>
         <a class="<?php echo $currentAdminPage === 'manage_notifications.php' ? 'active' : ''; ?>" href="manage_notifications.php"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
