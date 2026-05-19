@@ -276,7 +276,7 @@ function initSearchHistory() {
         }
 
         dropdown.innerHTML = '<div class="search-dropdown-title">Recent searches</div>' + history.map(function (item) {
-            return '<div class="recent-search-item search-history-item" data-term="' + escapeHtml(item) + '"><span class="search-term">' + escapeHtml(item) + '</span><button class="delete-search" type="button" aria-label="Remove search" data-term="' + escapeHtml(item) + '">×</button></div>';
+            return '<div class="recent-search-item search-history-item" data-term="' + escapeHtml(item) + '"><span class="search-term">' + escapeHtml(item) + '</span><button class="delete-search" type="button" aria-label="Remove search" data-term="' + escapeHtml(item) + '">Ã—</button></div>';
         }).join("") + '<button type="button" class="history-clear">Clear all</button>';
 
         dropdown.classList.add("open");
@@ -1257,7 +1257,7 @@ function getCsrfToken() {
 async function createPhonePePayment(items, mode, form, paymentMethod) {
     if (!saveCheckoutAddress(form)) return;
     try {
-        var response = await fetch("payment_create.php", {
+        var response = await fetch("../payment/create_phonepe_payment.php", {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrfToken() },
             body: JSON.stringify({
@@ -1624,8 +1624,3 @@ function updateHeaderCounts() {
         }, 0);
     }
 }
-
-
-
-
-
