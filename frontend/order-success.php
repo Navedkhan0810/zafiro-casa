@@ -15,4 +15,34 @@ include("../backend/includes/header.php");
         </div>
     </section>
 </main>
+<script>
+(function () {
+    var orderId = <?php echo json_encode($orderId); ?>;
+    var userId = document.body.dataset.userId || "";
+    if (!userId || !orderId) return;
+
+    var orderKey = "zafiroOrders_user_" + userId;
+    var cartKey = "zafiroCart_user_" + userId;
+    var orders = JSON.parse(localStorage.getItem(orderKey) || "[]");
+    var order = orders.find(function (item) {
+        return item.order_id === orderId;
+    });
+    if (!order || !Array.isArray(order.items)) return;
+
+    var orderedIds = order.items.map(function (item) {
+        return String(item.product_id || "");
+    }).filter(Boolean);
+    var cart = JSON.parse(localStorage.getItem(cartKey) || "[]").filter(function (item) {
+        return !orderedIds.includes(String(item.product_id));
+    });
+    localStorage.setItem(cartKey, JSON.stringify(cart));
+
+    var cartCount = document.getElementById("cartCount");
+    if (cartCount) {
+        cartCount.textContent = cart.reduce(function (sum, item) {
+            return sum + (item.quantity || 1);
+        }, 0);
+    }
+})();
+</script>
 <?php include("../backend/includes/footer.php"); ?>

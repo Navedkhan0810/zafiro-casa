@@ -32,6 +32,7 @@ include("../backend/includes/header.php");
 ?>
 
 <main class="account-simple-page">
+    <?php include("../backend/includes/profile_back_button.php"); ?>
     <section class="account-card delete-card">
         <h1>Delete Account</h1>
         <p>Are you sure you want to delete your account?</p>

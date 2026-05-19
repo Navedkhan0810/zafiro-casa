@@ -33,7 +33,7 @@ main a,
 
 header {
     position: relative;
-    z-index: 20;
+    z-index: 10001;
     background: #fff;
     border-bottom: 1px solid #eee4d8;
     box-shadow: 0 8px 24px rgba(40, 30, 20, 0.06);
@@ -115,6 +115,8 @@ header {
 .site-search,
 .search-wrapper {
     position: relative;
+    overflow: visible !important;
+    z-index: 10002;
     display: flex;
     align-items: center;
     flex: 1;
@@ -126,19 +128,26 @@ header {
     box-shadow: 0 8px 20px rgba(50, 35, 20, 0.06);
 }
 
-#searchDropdown {
+#searchDropdown,
+.search-history,
+.search-suggestions,
+.recent-searches {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     left: 0;
     right: 0;
     display: none;
-    margin-top: 8px;
-    overflow: hidden;
-    padding: 8px 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    max-height: 320px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px;
     border: 1px solid #eadfce;
-    border-radius: 16px;
+    border-radius: 14px;
     background: #fff;
-    box-shadow: 0 18px 38px rgba(32, 24, 16, 0.18);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
     z-index: 99999;
 }
 
@@ -163,7 +172,11 @@ header {
 
 .search-row {
     display: flex;
-    align-items: center;
+    align-items: stretch;
+    gap: 6px;
+    min-height: 42px;
+    margin: 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .history-item,
@@ -174,8 +187,12 @@ header {
     background: transparent;
     color: #3f362e;
     cursor: pointer;
-    padding: 11px 16px;
+    min-height: 42px;
+    padding: 10px 14px;
+    margin: 0;
+    line-height: 1.4;
     text-align: left;
+    white-space: normal;
     transition: 0.2s ease;
 }
 
@@ -183,7 +200,8 @@ header {
 .suggestion-item {
     display: flex;
     align-items: center;
-    gap: 11px;
+    justify-content: flex-start;
+    gap: 10px;
     font-size: 14px;
 }
 
@@ -203,6 +221,7 @@ header {
 
 .history-remove {
     flex: 0 0 38px;
+    min-height: 42px;
     border: 0;
     background: transparent;
     color: #9b8a78;
@@ -4340,4 +4359,556 @@ iframe {
     background: #111;
     color: #d4af37;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Premium mobile responsive system - frontend only */
+:root {
+    --zc-mobile-pad: clamp(14px, 4vw, 22px);
+    --zc-mobile-gap: clamp(12px, 3vw, 18px);
+}
+
+@media (max-width: 768px) {
+    html,
+    body {
+        width: 100%;
+        overflow-x: hidden;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        background: #faf8f4;
+    }
+
+
+    header {
+        position: sticky !important;
+        top: 0;
+        z-index: 10001;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(14px);
+    }
+
+    .main-header {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) 46px;
+        gap: 12px;
+        padding: 12px var(--zc-mobile-pad) 10px !important;
+    }
+
+    .brand-logo {
+        min-width: 0 !important;
+        padding: 0 !important;
+    }
+
+    .brand-name {
+        font-size: clamp(22px, 6vw, 28px) !important;
+        line-height: 1.05;
+    }
+
+    .brand-tagline {
+        margin-top: 2px;
+        font-size: 10px !important;
+        letter-spacing: 2.4px !important;
+    }
+
+    .menu-toggle {
+        display: inline-flex !important;
+        width: 46px;
+        height: 46px;
+        align-items: center;
+        justify-content: center;
+        padding: 0 !important;
+        border: 1px solid rgba(212, 175, 55, 0.42) !important;
+        border-radius: 14px !important;
+        background: linear-gradient(135deg, #111, #2b2b2b) !important;
+        color: #d4af37;
+        font-size: 0;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+    }
+
+    .menu-toggle::before {
+        content: "\f0c9";
+        font-family: "Font Awesome 6 Free";
+        font-size: 18px;
+        font-weight: 900;
+    }
+
+    .menu-toggle.active::before {
+        content: "\f00d";
+    }
+
+    .site-search,
+    .search-wrapper {
+        grid-column: 1 / -1;
+        width: 100% !important;
+        height: 42px !important;
+        max-width: none !important;
+        border-radius: 14px !important;
+        box-shadow: 0 8px 18px rgba(50, 35, 20, 0.08);
+    }
+
+    .site-search input,
+    .search-wrapper input {
+        min-width: 0;
+        font-size: 14px;
+        padding-left: 14px;
+    }
+
+    .site-search button,
+    .search-wrapper button {
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 12px;
+        font-size: 13px;
+    }
+
+    .header-actions {
+        grid-column: 1 / -1;
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        width: 100%;
+        gap: 8px !important;
+        font-size: 11px !important;
+    }
+
+    .header-action {
+        min-width: 0 !important;
+        min-height: 48px;
+        justify-content: center;
+        padding: 7px 6px;
+        border: 1px solid #efe3d2;
+        border-radius: 14px;
+        background: #fffaf3;
+    }
+
+    .header-action span {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .action-icon {
+        width: auto;
+        height: auto;
+        font-size: 17px;
+        color: #b58a3b;
+    }
+
+    .category-nav,
+    .category-nav.is-fixed {
+        position: fixed !important;
+        inset: 0 auto 0 0 !important;
+        z-index: 9500 !important;
+        display: flex !important;
+        width: min(320px, 84vw) !important;
+        height: 100dvh !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 78px 18px 18px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 9px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        border: 0 !important;
+        border-right: 1px solid rgba(212, 175, 55, 0.22) !important;
+        border-radius: 0 22px 22px 0;
+        background: linear-gradient(180deg, #111 0%, #242424 100%) !important;
+        box-shadow: 18px 0 44px rgba(0, 0, 0, 0.28) !important;
+        transform: translateX(-105%);
+        transition: transform 0.28s ease;
+    }
+
+    .category-nav.open {
+        transform: translateX(0);
+    }
+
+    .category-nav a {
+        width: 100%;
+        padding: 13px 14px !important;
+        border-radius: 14px !important;
+        color: #f7f0e6 !important;
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 14px !important;
+        font-weight: 700;
+    }
+
+    .category-nav a.active,
+    .category-nav a:hover {
+        background: linear-gradient(135deg, #d4af37, #c8a96b) !important;
+        color: #111 !important;
+    }
+
+    .hero-grid {
+        width: 100% !important;
+        padding: 18px var(--zc-mobile-pad) !important;
+        gap: var(--zc-mobile-gap) !important;
+    }
+
+    .hero-large,
+    .hero-panel,
+    .promo-panel {
+        min-height: clamp(240px, 58vw, 340px) !important;
+        border-radius: 18px !important;
+    }
+
+    .hero-panel::after {
+        background: linear-gradient(180deg, rgba(15, 12, 10, 0.16), rgba(15, 12, 10, 0.74));
+    }
+
+    .hero-content {
+        width: 100%;
+        max-width: none;
+        padding: 22px !important;
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+    }
+
+    .hero-content h1 {
+        font-size: clamp(28px, 8vw, 38px) !important;
+        line-height: 1.05;
+    }
+
+    .hero-content h2 {
+        font-size: clamp(20px, 5.5vw, 26px) !important;
+    }
+
+    .hero-content p {
+        font-size: 14px;
+        line-height: 1.45;
+    }
+
+    .hero-btn,
+    .product-btn,
+    .add-cart-btn,
+    .product-card-cta {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px !important;
+        font-size: 14px;
+        touch-action: manipulation;
+    }
+
+    .section-block,
+    .products,
+    .categories,
+    .home-decor-section,
+    .discount-offers-section,
+    .room-inspiration-section,
+    .why-zafiro-section,
+    .instagram-style-section,
+    .mega-page,
+    .product-list-page,
+    .account-page,
+    .commerce-page,
+    .notifications-shell {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-left: var(--zc-mobile-pad) !important;
+        padding-right: var(--zc-mobile-pad) !important;
+    }
+
+    .section-title h2,
+    .mega-hero h1,
+    .account-hero-card h1,
+    .page-banner h1 {
+        font-size: clamp(26px, 7vw, 34px) !important;
+        line-height: 1.12;
+    }
+
+    .section-title p,
+    .mega-hero p,
+    .page-banner p {
+        font-size: 14px !important;
+        line-height: 1.55;
+    }
+
+    .grid,
+    .products .grid,
+    .home-decor-grid,
+    .discount-offers-grid,
+    .room-inspiration-grid,
+    .why-zafiro-grid,
+    .instagram-style-grid,
+    .mega-grid,
+    .recent-products {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+    }
+
+    .card,
+    .product-card,
+    .home-decor-card,
+    .discount-offer-card,
+    .room-inspiration-card,
+    .mega-card,
+    .category-card {
+        width: 100% !important;
+        min-width: 0 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 10px 22px rgba(50, 35, 20, 0.08) !important;
+    }
+
+    .card img,
+    .product-card img,
+    .products .product-card img,
+    .category-card img,
+    .home-decor-card img,
+    .discount-offer-card img {
+        width: 100%;
+        height: auto !important;
+        aspect-ratio: 1 / 0.82;
+        object-fit: cover;
+    }
+
+    .card p,
+    .products .product-card p,
+    .product-card-text {
+        padding: 10px 10px 6px !important;
+        font-size: 13px !important;
+        line-height: 1.35;
+    }
+
+    .card .short-desc {
+        min-height: 0;
+        font-size: 12px !important;
+        line-height: 1.35;
+    }
+
+    .price,
+    .products .product-card .price {
+        margin: 4px 10px 10px !important;
+        font-size: 14px !important;
+    }
+
+    .product-card-actions {
+        top: 8px;
+        right: 8px;
+        gap: 6px;
+    }
+
+    .icon-action {
+        width: 34px;
+        height: 34px;
+    }
+
+    .product-card > .add-cart-btn,
+    .products .product-card > .add-cart-btn {
+        width: calc(100% - 20px) !important;
+        margin: auto 10px 12px !important;
+        padding: 10px 8px !important;
+        font-size: 12px !important;
+    }
+
+    .page-banner,
+    .mega-hero {
+        width: 100% !important;
+        min-height: 210px !important;
+        margin-top: 16px !important;
+        padding: 26px 18px !important;
+        border-radius: 20px !important;
+    }
+
+    .footer-inner,
+    .footer-newsletter {
+        grid-template-columns: 1fr !important;
+        gap: 22px !important;
+        text-align: center;
+    }
+
+    .footer-newsletter form {
+        width: 100%;
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 420px) {
+    .grid,
+    .products .grid,
+    .home-decor-grid,
+    .discount-offers-grid,
+    .room-inspiration-grid,
+    .why-zafiro-grid,
+    .instagram-style-grid,
+    .mega-grid,
+    .recent-products {
+        gap: 12px !important;
+    }
+
+    .header-actions {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .header-action {
+        font-size: 10px !important;
+        padding: 6px 3px;
+    }
+}
+
+/* Search results: scoped layout fixes */
+.search-results-section {
+    padding: 42px max(18px, 5vw) 56px;
+}
+
+.search-results-query {
+    margin: 8px 0 24px;
+    color: #7a6a59;
+    font-size: 15px;
+}
+
+.search-results-grid {
+    align-items: stretch;
+}
+
+.search-result-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 420px;
+    overflow: hidden;
+}
+
+.search-result-card .product-card-link {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.search-result-card img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+}
+
+.search-result-card .product-card-link > p:first-of-type {
+    min-height: 44px;
+    overflow: hidden;
+    line-height: 1.35;
+}
+
+.search-result-card .short-desc {
+    min-height: 22px;
+    overflow: hidden;
+    color: #7a6a59;
+    line-height: 1.35;
+}
+
+.search-result-card .add-cart-btn {
+    margin-top: auto;
+}
+
+.search-empty-state {
+    margin: 24px auto;
+    max-width: 620px;
+    padding: 22px;
+    border: 1px solid #eadfce;
+    border-radius: 16px;
+    background: #fffaf3;
+    color: #5f5145;
+}
+
+@media (max-width: 768px) {
+    #searchDropdown,
+    .search-history,
+    .search-suggestions,
+    .recent-searches {
+        max-height: min(320px, 55vh);
+        border-radius: 14px;
+    }
+
+    .search-results-section {
+        padding: 28px 16px 42px;
+    }
+
+    .search-result-card {
+        min-height: 390px;
+    }
+
+    .search-result-card img {
+        height: 190px;
+    }
+}
+/* Search history dropdown row fix */
+#searchDropdown {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.search-history-item,
+.recent-search-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 12px;
+    margin: 0 0 8px 0;
+    box-sizing: border-box;
+    border-radius: 14px;
+    background: #fffaf3;
+    color: #3f362e;
+    cursor: pointer;
+    line-height: 1.4;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+}
+
+.search-history-item:hover,
+.recent-search-item:hover {
+    background: #f5f0e8;
+}
+
+.search-history-item span,
+.recent-search-item span,
+.search-term {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-history-item .delete-search,
+.recent-search-item .delete-search,
+.search-history-item button,
+.recent-search-item button {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    border: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    position: static !important;
+    float: none !important;
+    transform: none !important;
+    background: #111;
+    color: #d4af37;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.search-history-item .delete-search:hover,
+.recent-search-item .delete-search:hover {
+    background: #d4af37;
+    color: #111;
+}
+
+.history-clear {
+    box-sizing: border-box;
+    border-radius: 12px;
 }

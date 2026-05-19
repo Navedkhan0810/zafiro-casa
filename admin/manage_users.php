@@ -135,6 +135,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
     }
 
+    if ($userId > 0 && ($action === "restore" || $action === "restore_user")) {
+        $stmt = $conn->prepare("UPDATE users SET is_deleted = 0, is_blocked = 0, status = 'active', deleted_at = NULL WHERE id = ? AND (status = 'deleted' OR is_deleted = 1 OR deleted_at IS NOT NULL)");
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $message = $stmt->affected_rows > 0 ? "User restored successfully." : "Failed to restore user.";
+        $messageType = $stmt->affected_rows > 0 ? "success" : "error";
+    }
+
     if ($userId > 0 && $action === "edit_user") {
         $fullName = trim($_POST["full_name"] ?? "");
         $username = trim($_POST["username"] ?? "");
@@ -324,24 +332,34 @@ include("includes/admin_sidebar.php");
                             data-email="<?php echo htmlspecialchars($user["email"]); ?>"
                             data-phone="<?php echo htmlspecialchars($user["phone"]); ?>"
                             data-gender="<?php echo htmlspecialchars($user["gender"]); ?>">Edit User</button>
-                        <form method="POST" action="manage_users.php">
-                            <input type="hidden" name="action" value="toggle_status">
-                            <input type="hidden" name="user_id" value="<?php echo (int) $user["id"]; ?>">
-                            <input type="hidden" name="status" value="<?php echo $status === "active" ? "inactive" : "active"; ?>">
-                            <button type="submit" class="admin-action-link"><?php echo $status === "active" ? "Deactivate" : "Activate"; ?></button>
-                        </form>
-                        <form method="POST" action="manage_users.php">
-                            <input type="hidden" name="action" value="toggle_block">
-                            <input type="hidden" name="user_id" value="<?php echo (int) $user["id"]; ?>">
-                            <input type="hidden" name="is_blocked" value="<?php echo $isBlocked ? 0 : 1; ?>">
-                            <button type="submit" class="admin-action-link"><?php echo $isBlocked ? "Unblock" : "Block"; ?></button>
-                        </form>
+                        <?php if (!$isDeleted): ?>
+                            <form method="POST" action="manage_users.php">
+                                <input type="hidden" name="action" value="toggle_status">
+                                <input type="hidden" name="user_id" value="<?php echo (int) $user["id"]; ?>">
+                                <input type="hidden" name="status" value="<?php echo ($status === "active" && !$isBlocked) ? "inactive" : "active"; ?>">
+                                <button type="submit" class="admin-action-link"><?php echo ($status === "active" && !$isBlocked) ? "Deactivate" : "Activate"; ?></button>
+                            </form>
+                            <form method="POST" action="manage_users.php">
+                                <input type="hidden" name="action" value="toggle_block">
+                                <input type="hidden" name="user_id" value="<?php echo (int) $user["id"]; ?>">
+                                <input type="hidden" name="is_blocked" value="<?php echo $isBlocked ? 0 : 1; ?>">
+                                <button type="submit" class="admin-action-link"><?php echo $isBlocked ? "Unblock" : "Block"; ?></button>
+                            </form>
+                        <?php endif; ?>
                         <a class="admin-action-link" href="manage_orders.php?search=<?php echo urlencode($user["email"]); ?>">View Orders</a>
-                        <form method="POST" action="manage_users.php" class="delete-user-form">
-                            <input type="hidden" name="action" value="delete_user">
-                            <input type="hidden" name="user_id" value="<?php echo (int) $user["id"]; ?>">
-                            <button type="submit" class="admin-action-link danger">Delete User</button>
-                        </form>
+                        <?php if ($isDeleted): ?>
+                            <form method="POST" action="manage_users.php" class="restore-user-form">
+                                <input type="hidden" name="action" value="restore">
+                                <input type="hidden" name="user_id" value="<?php echo (int) $user["id"]; ?>">
+                                <button type="submit" class="admin-action-link restore">Restore User</button>
+                            </form>
+                        <?php else: ?>
+                            <form method="POST" action="manage_users.php" class="delete-user-form">
+                                <input type="hidden" name="action" value="delete_user">
+                                <input type="hidden" name="user_id" value="<?php echo (int) $user["id"]; ?>">
+                                <button type="submit" class="admin-action-link danger">Delete User</button>
+                            </form>
+                        <?php endif; ?>
                     </div>
 
                     <div class="admin-user-modal-data" id="userData-<?php echo (int) $user["id"]; ?>">
@@ -404,3 +422,4 @@ include("includes/admin_sidebar.php");
         </form>
     </div>
 <?php include("includes/admin_footer.php"); ?>
+

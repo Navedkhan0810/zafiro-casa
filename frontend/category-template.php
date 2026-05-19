@@ -2,6 +2,12 @@
 <?php include_once("../backend/includes/product_images.php"); ?>
 <link rel="stylesheet" href="../assets/css/category.css">
 
+<?php
+$pageBackText = "Back to Home";
+$pageBackHref = "index.php";
+include("../backend/includes/page_back_button.php");
+?>
+
 <section class="page-banner <?php echo strtolower(trim($pageTitle)) === 'luxury tables' ? 'luxury-tables-banner' : ''; ?>">
     <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
     <p><?php echo htmlspecialchars($pageSubtitle); ?></p>

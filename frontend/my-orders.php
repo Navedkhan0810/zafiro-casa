@@ -30,6 +30,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS reviews (
 include("../backend/includes/header.php");
 ?>
 <main class="account-simple-page">
+    <?php include("../backend/includes/profile_back_button.php"); ?>
     <section class="section-title"><span>Zafiro Casa</span><h2>My Orders</h2></section>
     <section class="order-list" id="localOrdersList">
         <?php if ($orders && $orders->num_rows > 0): ?>

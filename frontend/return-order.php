@@ -36,6 +36,7 @@ $order = $stmt->get_result()->fetch_assoc();
 include("../backend/includes/header.php");
 ?>
 <main class="account-simple-page">
+    <?php include("../backend/includes/profile_back_button.php"); ?>
     <section class="account-card">
         <h1>Return Order</h1>
         <?php if ($message): ?><div class="auth-alert success"><?php echo htmlspecialchars($message); ?></div><?php endif; ?>

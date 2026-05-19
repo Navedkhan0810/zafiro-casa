@@ -81,8 +81,9 @@
 </footer>
 
 <script src="../assets/js/zafiro-popup.js?v=1"></script>
-<script src="../assets/js/user.js?v=25"></script>
+<script src="../assets/js/user.js?v=26"></script>
 <script src="../assets/js/notifications.js?v=2"></script>
+<script src="../assets/js/profile-pages.js?v=1"></script>
 
 </body>
 </html>

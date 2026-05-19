@@ -2,6 +2,7 @@
 include("auth.php");
 include("../backend/config/db.php");
 include_once("../backend/includes/category_images.php");
+include_once("../backend/includes/homepage_content.php");
 
 $message = "";
 $messageType = "";
@@ -9,6 +10,7 @@ $messageType = "";
 function homeEditorDeleteForm($type, $id, $anchor = "") {
     $anchorInput = $anchor !== "" ? '<input type="hidden" name="redirect_anchor" value="' . htmlspecialchars($anchor, ENT_QUOTES, 'UTF-8') . '">' : "";
     return '<form method="POST" action="manage_hero_slider.php" class="inline-admin-form home-editor-delete-form">'
+        . csrf_field()
         . '<input type="hidden" name="action" value="delete_section">'
         . '<input type="hidden" name="type" value="' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '">'
         . '<input type="hidden" name="id" value="' . (int) $id . '">'
@@ -92,6 +94,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS homepage_video_banner (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 $conn->query("ALTER TABLE homepage_video_banner ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0");
+ensureHomepageContentTables($conn);
 
 function uploadHomeImage($field, $folder) {
     $error = "";
@@ -171,14 +174,17 @@ try {
                 "why" => "homepage_why_points",
                 "room" => "homepage_room_cards",
                 "feature" => "homepage_feature_boxes",
-                "video" => "homepage_video_banner"
+                "video" => "homepage_video_banner",
+                "content_item" => "homepage_content_items"
             ];
             if ($id > 0 && isset($tables[$type])) {
                 $stmt = $conn->prepare("DELETE FROM {$tables[$type]} WHERE id=?");
                 $stmt->bind_param("i", $id);
                 $stmt->execute();
             }
-            header("Location: manage_hero_slider.php" . ($_POST["redirect_anchor"] ?? ""));
+            $redirectAnchor = (string) ($_POST["redirect_anchor"] ?? "");
+            $redirectAnchor = preg_match("/^#[A-Za-z0-9_-]+$/", $redirectAnchor) ? $redirectAnchor : "";
+            header("Location: manage_hero_slider.php" . $redirectAnchor);
             exit;
         }
 
@@ -298,6 +304,48 @@ try {
             $message = $action === "room" ? "Room inspiration card saved." : "Right hero banner saved.";
         }
 
+        if ($action === "content_section") {
+            $sectionKey = $_POST["section_key"] ?? "";
+            if (!array_key_exists($sectionKey, homepageContentDefaults())) throw new RuntimeException("Invalid homepage section.");
+            $title = trim($_POST["title"] ?? "");
+            $subtitle = trim($_POST["subtitle"] ?? "");
+            $buttonText = trim($_POST["button_text"] ?? "");
+            $buttonLink = trim($_POST["button_link"] ?? "");
+            $status = statusValue($_POST["status"] ?? "active");
+            if ($title === "") throw new RuntimeException("Section title is required.");
+            $stmt = $conn->prepare("UPDATE homepage_content_sections SET title=?, subtitle=?, button_text=?, button_link=?, status=? WHERE section_key=?");
+            $stmt->bind_param("ssssss", $title, $subtitle, $buttonText, $buttonLink, $status, $sectionKey);
+            $stmt->execute();
+            $message = "Homepage section saved.";
+        }
+
+        if ($action === "content_item") {
+            $id = (int) ($_POST["id"] ?? 0);
+            $sectionKey = $_POST["section_key"] ?? "";
+            if (!array_key_exists($sectionKey, homepageContentDefaults())) throw new RuntimeException("Invalid homepage section.");
+            $title = trim($_POST["title"] ?? "");
+            $subtitle = trim($_POST["subtitle"] ?? "");
+            $priceText = trim($_POST["price_text"] ?? "");
+            $buttonText = trim($_POST["button_text"] ?? "");
+            $buttonLink = trim($_POST["button_link"] ?? "");
+            $sortOrder = (int) ($_POST["sort_order"] ?? 0);
+            $status = statusValue($_POST["status"] ?? "active");
+            $image = uploadHomeImage("image", "homepage_content");
+            if ($title === "") throw new RuntimeException("Item title is required.");
+            if ($id > 0 && $image) {
+                $stmt = $conn->prepare("UPDATE homepage_content_items SET title=?, subtitle=?, price_text=?, button_text=?, button_link=?, image_path=?, sort_order=?, status=? WHERE id=? AND section_key=?");
+                $stmt->bind_param("ssssssisis", $title, $subtitle, $priceText, $buttonText, $buttonLink, $image, $sortOrder, $status, $id, $sectionKey);
+            } elseif ($id > 0) {
+                $stmt = $conn->prepare("UPDATE homepage_content_items SET title=?, subtitle=?, price_text=?, button_text=?, button_link=?, sort_order=?, status=? WHERE id=? AND section_key=?");
+                $stmt->bind_param("sssssisis", $title, $subtitle, $priceText, $buttonText, $buttonLink, $sortOrder, $status, $id, $sectionKey);
+            } else {
+                if (!$image) throw new RuntimeException("Item image is required.");
+                $stmt = $conn->prepare("INSERT INTO homepage_content_items (section_key, title, subtitle, price_text, button_text, button_link, image_path, sort_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssssssis", $sectionKey, $title, $subtitle, $priceText, $buttonText, $buttonLink, $image, $sortOrder, $status);
+            }
+            $stmt->execute();
+            $message = "Homepage content item saved.";
+        }
         if ($action === "video") {
             $id = (int) ($_POST["id"] ?? 0);
             $heading = trim($_POST["heading"] ?? "Zafiro Casa Luxury Living");
@@ -347,6 +395,7 @@ $editWhy = $editType === "why" ? editRow($conn, "homepage_why_points", $editId) 
 $editRoom = $editType === "room" ? editRow($conn, "homepage_room_cards", $editId) : null;
 $editFeature = $editType === "feature" ? editRow($conn, "homepage_feature_boxes", $editId) : null;
 $editVideo = $editType === "video" ? editRow($conn, "homepage_video_banner", $editId) : null;
+$editContentItem = $editType === "content_item" ? editRow($conn, "homepage_content_items", $editId) : null;
 $videoBanners = $conn->query("SELECT * FROM homepage_video_banner ORDER BY sort_order ASC, id ASC");
 $videoBanner = $editVideo ?: [
     "id" => 0,
@@ -370,6 +419,22 @@ if ($categories) while ($row = $categories->fetch_assoc()) $categoryOptions[] = 
 $whyPoints = $conn->query("SELECT * FROM homepage_why_points ORDER BY sort_order ASC, id DESC");
 $roomCards = $conn->query("SELECT * FROM homepage_room_cards ORDER BY sort_order ASC, id DESC");
 $featureBoxes = $conn->query("SELECT * FROM homepage_feature_boxes ORDER BY sort_order ASC, id ASC LIMIT 2");
+$homeDecorSection = homepageContentSection($conn, "home_decor");
+$featuredCategoriesSection = homepageContentSection($conn, "featured_categories");
+$styleGallerySection = homepageContentSection($conn, "style_gallery");
+$homeDecorItems = $conn->query("SELECT * FROM homepage_content_items WHERE section_key='home_decor' ORDER BY sort_order ASC, id DESC");
+$featuredCategoryItems = $conn->query("SELECT * FROM homepage_content_items WHERE section_key='featured_categories' ORDER BY sort_order ASC, id DESC");
+$styleGalleryItems = $conn->query("SELECT * FROM homepage_content_items WHERE section_key='style_gallery' ORDER BY sort_order ASC, id DESC");
+function homeEditorRows($result) {
+    $rows = [];
+    if ($result) while ($row = $result->fetch_assoc()) $rows[] = $row;
+    return $rows;
+}
+$contentEditorCards = [
+    ["key" => "home_decor", "heading" => "Home Decor Section", "section" => $homeDecorSection, "items" => homeEditorRows($homeDecorItems), "price" => true, "button" => true, "note" => "Manage decor cards shown in the Home Decor section."],
+    ["key" => "featured_categories", "heading" => "Featured Categories Section", "section" => $featuredCategoriesSection, "items" => homeEditorRows($featuredCategoryItems), "price" => false, "button" => false, "note" => "Manage category cards shown near the top of the homepage."],
+    ["key" => "style_gallery", "heading" => "Style Gallery Section", "section" => $styleGallerySection, "items" => homeEditorRows($styleGalleryItems), "price" => false, "button" => false, "note" => "Manage style gallery cards and links."]
+];
 
 include("includes/admin_header.php");
 include("includes/admin_sidebar.php");
@@ -431,6 +496,48 @@ include("includes/admin_sidebar.php");
             <?php endwhile; ?>
             </tbody></table>
         </article>
+
+        <?php foreach ($contentEditorCards as $contentCard): ?>
+            <?php
+            $section = $contentCard["section"];
+            $editingThisItem = $editContentItem && ($editContentItem["section_key"] ?? "") === $contentCard["key"];
+            ?>
+            <article class="admin-form-card home-editor-card" id="<?php echo htmlspecialchars($contentCard["key"]); ?>">
+                <h2><?php echo htmlspecialchars($contentCard["heading"]); ?></h2>
+                <p><?php echo htmlspecialchars($contentCard["note"]); ?></p>
+                <form method="POST" class="home-editor-form">
+                    <input type="hidden" name="action" value="content_section">
+                    <input type="hidden" name="section_key" value="<?php echo htmlspecialchars($contentCard["key"]); ?>">
+                    <label>Section Title<input type="text" name="title" value="<?php echo htmlspecialchars($section["title"] ?? ""); ?>" required></label>
+                    <label>Section Subtitle / Description<input type="text" name="subtitle" value="<?php echo htmlspecialchars($section["subtitle"] ?? ""); ?>"></label>
+                    <label>Button Text<input type="text" name="button_text" value="<?php echo htmlspecialchars($section["button_text"] ?? ""); ?>"></label>
+                    <label>Button Link<input type="text" name="button_link" value="<?php echo htmlspecialchars($section["button_link"] ?? ""); ?>"></label>
+                    <label>Status<select name="status"><option value="active" <?php echo (($section["status"] ?? "active") === "active") ? "selected" : ""; ?>>Active</option><option value="inactive" <?php echo (($section["status"] ?? "") === "inactive") ? "selected" : ""; ?>>Inactive</option></select></label>
+                    <button class="admin-btn" type="submit">Save Section Text</button>
+                </form>
+                <?php if ($editingThisItem): ?><a class="admin-btn admin-btn-light home-editor-new" href="manage_hero_slider.php#<?php echo htmlspecialchars($contentCard["key"]); ?>">+ Add New Item</a><?php endif; ?>
+                <form method="POST" enctype="multipart/form-data" class="home-editor-form">
+                    <input type="hidden" name="action" value="content_item">
+                    <input type="hidden" name="section_key" value="<?php echo htmlspecialchars($contentCard["key"]); ?>">
+                    <input type="hidden" name="id" value="<?php echo (int) ($editingThisItem ? $editContentItem["id"] : 0); ?>">
+                    <label>Item Title<input type="text" name="title" value="<?php echo htmlspecialchars($editingThisItem ? ($editContentItem["title"] ?? "") : ""); ?>" required></label>
+                    <label>Subtitle / Caption<input type="text" name="subtitle" value="<?php echo htmlspecialchars($editingThisItem ? ($editContentItem["subtitle"] ?? "") : ""); ?>"></label>
+                    <?php if ($contentCard["price"]): ?><label>Price / Starting Price<input type="text" name="price_text" value="<?php echo htmlspecialchars($editingThisItem ? ($editContentItem["price_text"] ?? "") : ""); ?>" placeholder="Starting from INR 999"></label><?php else: ?><input type="hidden" name="price_text" value=""><?php endif; ?>
+                    <?php if ($contentCard["button"]): ?><label>Button Text<input type="text" name="button_text" value="<?php echo htmlspecialchars($editingThisItem ? ($editContentItem["button_text"] ?? "") : ""); ?>"></label><?php else: ?><input type="hidden" name="button_text" value=""><?php endif; ?>
+                    <label>Button / Card Link<input type="text" name="button_link" value="<?php echo htmlspecialchars($editingThisItem ? ($editContentItem["button_link"] ?? "") : ""); ?>" placeholder="product-list.php?category=decor-furnishing"></label>
+                    <label>Image<input type="file" name="image" accept=".jpg,.jpeg,.png,.webp" <?php echo $editingThisItem ? "" : "required"; ?>><small class="image-size-note">Recommended image size: 600 x 420 px</small></label>
+                    <label>Display Order<input type="number" name="sort_order" value="<?php echo htmlspecialchars($editingThisItem ? ($editContentItem["sort_order"] ?? "0") : "0"); ?>"></label>
+                    <label>Status<select name="status"><option value="active" <?php echo (($editingThisItem ? ($editContentItem["status"] ?? "active") : "active") === "active") ? "selected" : ""; ?>>Active</option><option value="inactive" <?php echo (($editingThisItem ? ($editContentItem["status"] ?? "") : "") === "inactive") ? "selected" : ""; ?>>Inactive</option></select></label>
+                    <?php if ($editingThisItem && !empty($editContentItem["image_path"])): ?><img class="home-editor-preview" src="<?php echo htmlspecialchars($editContentItem["image_path"]); ?>" alt="Item preview"><?php endif; ?>
+                    <button class="admin-btn" type="submit"><?php echo $editingThisItem ? "Update Item" : "Add Item"; ?></button>
+                </form>
+                <table class="admin-table home-editor-table"><thead><tr><th>Image</th><th>Title</th><th>Price</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+                <?php foreach ($contentCard["items"] as $contentItem): ?>
+                    <tr><td><?php if (!empty($contentItem["image_path"])): ?><img class="admin-hero-thumb" src="<?php echo htmlspecialchars($contentItem["image_path"]); ?>" alt=""><?php endif; ?></td><td><?php echo htmlspecialchars($contentItem["title"]); ?><br><small><?php echo htmlspecialchars($contentItem["subtitle"] ?? ""); ?></small></td><td><?php echo htmlspecialchars($contentItem["price_text"] ?? ""); ?></td><td><?php echo (int) $contentItem["sort_order"]; ?></td><td><?php echo htmlspecialchars($contentItem["status"]); ?></td><td><a href="?edit_type=content_item&edit=<?php echo (int) $contentItem["id"]; ?>#<?php echo htmlspecialchars($contentCard["key"]); ?>">Edit</a> <?php echo homeEditorDeleteForm("content_item", $contentItem["id"], "#" . $contentCard["key"]); ?></td></tr>
+                <?php endforeach; ?>
+                </tbody></table>
+            </article>
+        <?php endforeach; ?>
 
         <article class="admin-form-card home-editor-card">
             <h2>Why Choose Zafiro Casa</h2>
@@ -520,3 +627,5 @@ include("includes/admin_sidebar.php");
         </article>
     </section>
 <?php include("includes/admin_footer.php"); ?>
+
+

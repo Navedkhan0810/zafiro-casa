@@ -4,15 +4,23 @@ header("Content-Type: application/json");
 include("../backend/config/db.php");
 include_once("../backend/includes/user_auth.php");
 include_once("../backend/includes/phonepe_helper.php");
+include_once("../backend/includes/csrf.php");
 include_once("../config/app.php");
 
 if (empty($_SESSION["user_id"])) {
+    http_response_code(401);
     echo json_encode(["success" => false, "message" => "Please login first."]);
     exit;
 }
 
 ensurePhonePeSchema($conn);
 $payload = json_decode(file_get_contents("php://input"), true) ?: [];
+if (!csrf_validate($payload["csrf_token"] ?? ($_SERVER["HTTP_X_CSRF_TOKEN"] ?? ""))) {
+    http_response_code(403);
+    echo json_encode(["success" => false, "message" => "Invalid security token. Please refresh and try again."]);
+    exit;
+}
+
 $items = $payload["items"] ?? [];
 $address = $payload["address"] ?? [];
 $requestedMethod = in_array(($payload["payment_method"] ?? "UPI"), ["UPI", "Card"], true) ? $payload["payment_method"] : "UPI";
@@ -110,3 +118,8 @@ if (!$redirect) {
 }
 
 echo json_encode(["success" => (bool) $redirect, "redirect_url" => $redirect, "order_id" => $orderCode, "message" => $redirect ? "Redirecting to payment." : "Payment service is temporarily unavailable."]);
+
+
+
+
+

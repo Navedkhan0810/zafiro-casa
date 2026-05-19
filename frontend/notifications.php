@@ -114,6 +114,11 @@ $notifications = $stmt->get_result();
 include("../backend/includes/header.php");
 ?>
 <main class="account-simple-page notifications-page-wrap">
+    <?php
+    $pageBackText = "Back to Profile";
+    $pageBackHref = "profile.php";
+    include("../backend/includes/page_back_button.php");
+    ?>
     <section class="account-card notifications-page-card">
         <div class="notifications-page-head">
             <div>

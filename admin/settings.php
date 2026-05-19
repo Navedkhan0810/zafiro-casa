@@ -141,7 +141,7 @@ function clearAdminCache() {
 }
 
 function adminSettingsDebug($message, $adminId, $stmt = null) {
-    $debug = " POST=" . json_encode($_POST) . " admin_id=" . $adminId;
+    $debug = " admin_id=" . $adminId;
     if ($stmt instanceof mysqli_stmt) {
         $debug .= " sql_error=" . $stmt->error . " affected_rows=" . $stmt->affected_rows;
     }
@@ -507,3 +507,4 @@ include("includes/admin_sidebar.php");
         </form>
     </div>
 <?php include("includes/admin_footer.php"); ?>
+

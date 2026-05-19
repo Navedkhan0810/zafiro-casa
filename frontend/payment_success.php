@@ -15,7 +15,20 @@ include("../backend/includes/header.php");
     </section>
 </main>
 <script>
-if (document.body.dataset.userId) localStorage.removeItem("zafiroCart_user_" + document.body.dataset.userId);
+var pendingMode = sessionStorage.getItem("zafiroPendingOrderMode");
+var pendingItems = JSON.parse(sessionStorage.getItem("zafiroPendingOrderItems") || "[]");
+if (pendingMode === "cart" && document.body.dataset.userId) {
+    var cartKey = "zafiroCart_user_" + document.body.dataset.userId;
+    var orderedIds = pendingItems.map(function (item) { return String(item.product_id || ""); });
+    var cart = JSON.parse(localStorage.getItem(cartKey) || "[]").filter(function (item) {
+        return !orderedIds.includes(String(item.product_id));
+    });
+    localStorage.setItem(cartKey, JSON.stringify(cart));
+    var cartCount = document.getElementById("cartCount");
+    if (cartCount) cartCount.textContent = cart.reduce(function (sum, item) { return sum + (item.quantity || 1); }, 0);
+}
+sessionStorage.removeItem("zafiroPendingOrderMode");
+sessionStorage.removeItem("zafiroPendingOrderItems");
 localStorage.removeItem("zafiroBuyNowItem");
 </script>
 <?php include("../backend/includes/footer.php"); ?>

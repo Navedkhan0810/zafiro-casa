@@ -26,7 +26,7 @@ if (isset($conn) && $conn instanceof mysqli) {
     <meta name="csrf-token" content="<?php echo htmlspecialchars($adminCsrfToken); ?>">
     <title>Zafiro Casa Admin</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../assets/css/admin.css?v=56">
+    <link rel="stylesheet" href="../assets/css/admin.css?v=57">
     <link rel="stylesheet" href="../assets/css/zafiro-popup.css?v=1">
 </head>
 <body class="admin-shell <?php echo htmlspecialchars(implode(' ', $adminBodyClasses)); ?>" data-csrf="<?php echo htmlspecialchars($adminCsrfToken); ?>">

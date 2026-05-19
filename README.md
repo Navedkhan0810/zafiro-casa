@@ -25,7 +25,7 @@ Zafiro Casa is a PHP + MySQL furniture e-commerce website with a premium black/g
 ## Project Structure
 
 ```text
-myproject/
+zafiro-casa/
   admin/              Admin panel pages
   assets/
     css/              Stylesheets

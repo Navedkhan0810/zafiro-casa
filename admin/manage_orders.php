@@ -132,38 +132,52 @@ function fetchOrderItems($conn, $orderKey, $orderRow) {
 
 ensureOrdersSchema($conn);
 
+$orderStatusOptions = ["Pending", "Confirmed", "Packed", "Shipped", "Out for Delivery", "Delivered", "Cancelled", "Return Requested", "Returned", "Refunded"];
+$paymentStatusOptions = ["Pending", "Paid", "Failed", "Refunded"];
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $action = $_POST["action"] ?? "";
     $orderKey = trim($_POST["order_key"] ?? "");
+    $orderKeyValid = $orderKey !== "" && preg_match("/^[A-Za-z0-9_-]{1,60}$/", $orderKey);
 
-    if ($orderKey !== "" && $action === "update_order_status") {
+    if ($orderKeyValid && $action === "update_order_status") {
         $newStatus = trim($_POST["order_status"] ?? "Pending");
-        $dateColumns = [
-            "Confirmed" => "confirmed_date",
-            "Shipped" => "shipping_date",
-            "Delivered" => "delivery_date",
-            "Returned" => "return_date",
-            "Refunded" => "refund_date"
-        ];
-        $dateSql = isset($dateColumns[$newStatus]) ? ", {$dateColumns[$newStatus]} = NOW()" : "";
-        $stmt = $conn->prepare("UPDATE orders SET order_status = ? $dateSql WHERE order_id = ? OR order_code = ?");
-        $stmt->bind_param("sss", $newStatus, $orderKey, $orderKey);
-        $message = $stmt->execute() ? "Order status updated." : "Order status could not be updated.";
-        $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
-        if ($stmt->affected_rows >= 0) adminReportLog($conn, "update_order_status", "Updated order status to " . $newStatus . ".", "order", $orderKey, $orderKey);
+        if (!in_array($newStatus, $orderStatusOptions, true)) {
+            $message = "Invalid order status.";
+            $messageType = "error";
+        } else {
+            $dateColumns = [
+                "Confirmed" => "confirmed_date",
+                "Shipped" => "shipping_date",
+                "Delivered" => "delivery_date",
+                "Returned" => "return_date",
+                "Refunded" => "refund_date"
+            ];
+            $dateSql = isset($dateColumns[$newStatus]) ? ", {$dateColumns[$newStatus]} = NOW()" : "";
+            $stmt = $conn->prepare("UPDATE orders SET order_status = ? $dateSql WHERE order_id = ? OR order_code = ?");
+            $stmt->bind_param("sss", $newStatus, $orderKey, $orderKey);
+            $message = $stmt->execute() ? "Order status updated." : "Order status could not be updated.";
+            $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+            if ($stmt->affected_rows >= 0) adminReportLog($conn, "update_order_status", "Updated order status to " . $newStatus . ".", "order", $orderKey, $orderKey);
+        }
     }
 
-    if ($orderKey !== "" && $action === "update_payment_status") {
+    if ($orderKeyValid && $action === "update_payment_status") {
         $newStatus = trim($_POST["payment_status"] ?? "Pending");
-        $dateSql = $newStatus === "Refunded" ? ", refund_date = NOW(), order_status = 'Refunded'" : "";
-        $stmt = $conn->prepare("UPDATE orders SET payment_status = ? $dateSql WHERE order_id = ? OR order_code = ?");
-        $stmt->bind_param("sss", $newStatus, $orderKey, $orderKey);
-        $message = $stmt->execute() ? "Payment status updated." : "Payment status could not be updated.";
-        $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
-        if ($stmt->affected_rows >= 0) adminReportLog($conn, "update_order_status", "Updated payment status to " . $newStatus . ".", "order", $orderKey, $orderKey);
+        if (!in_array($newStatus, $paymentStatusOptions, true)) {
+            $message = "Invalid payment status.";
+            $messageType = "error";
+        } else {
+            $dateSql = $newStatus === "Refunded" ? ", refund_date = NOW(), order_status = 'Refunded'" : "";
+            $stmt = $conn->prepare("UPDATE orders SET payment_status = ? $dateSql WHERE order_id = ? OR order_code = ?");
+            $stmt->bind_param("sss", $newStatus, $orderKey, $orderKey);
+            $message = $stmt->execute() ? "Payment status updated." : "Payment status could not be updated.";
+            $messageType = $stmt->affected_rows >= 0 ? "success" : "error";
+            if ($stmt->affected_rows >= 0) adminReportLog($conn, "update_order_status", "Updated payment status to " . $newStatus . ".", "order", $orderKey, $orderKey);
+        }
     }
 
-    if ($orderKey !== "" && $action === "delete_order") {
+    if ($orderKeyValid && $action === "delete_order") {
         $stmt = $conn->prepare("DELETE FROM orders WHERE order_id = ? OR order_code = ?");
         $stmt->bind_param("ss", $orderKey, $orderKey);
         $deleted = $stmt->execute();
@@ -175,7 +189,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if ($deleted) adminReportLog($conn, "delete_order", "Deleted order " . $orderKey . ".", "order", $orderKey, $orderKey);
     }
 }
-
 $search = trim($_GET["search"] ?? "");
 $orderStatus = trim($_GET["order_status"] ?? "");
 $paymentStatus = trim($_GET["payment_status"] ?? "");
@@ -272,7 +285,7 @@ $stats = [
     "Confirmed Orders" => orderCountValue($conn, "SELECT COUNT(DISTINCT COALESCE(NULLIF(order_id, ''), NULLIF(order_code, ''), id)) AS total FROM orders WHERE LOWER(order_status) = 'confirmed'"),
     "Delivered Orders" => orderCountValue($conn, "SELECT COUNT(DISTINCT COALESCE(NULLIF(order_id, ''), NULLIF(order_code, ''), id)) AS total FROM orders WHERE LOWER(order_status) = 'delivered'"),
     "Returned Orders" => orderCountValue($conn, "SELECT COUNT(DISTINCT COALESCE(NULLIF(order_id, ''), NULLIF(order_code, ''), id)) AS total FROM orders WHERE LOWER(order_status) IN ('returned', 'return requested')"),
-    "Total Sales" => "₹" . number_format(orderMoneyValue($conn, "SELECT COALESCE(SUM(CASE WHEN total_amount > 0 THEN total_amount ELSE total END), 0) AS total FROM orders"), 2)
+    "Total Sales" => "?" . number_format(orderMoneyValue($conn, "SELECT COALESCE(SUM(CASE WHEN total_amount > 0 THEN total_amount ELSE total END), 0) AS total FROM orders"), 2)
 ];
 
 $orderStatusOptions = ["Pending", "Confirmed", "Packed", "Shipped", "Out for Delivery", "Delivered", "Cancelled", "Return Requested", "Returned", "Refunded"];
@@ -377,7 +390,7 @@ include("includes/admin_sidebar.php");
                         <div>
                             <span><?php echo htmlspecialchars($order["order_key"]); ?></span>
                             <h2><?php echo htmlspecialchars($firstItem["product_name"] ?? "Order Items"); ?></h2>
-                            <p>Qty: <?php echo array_sum(array_map(fn($item) => (int) ($item["quantity"] ?? 1), $items)); ?><?php echo count($items) > 1 ? " • +" . (count($items) - 1) . " more item(s)" : ""; ?></p>
+                            <p>Qty: <?php echo array_sum(array_map(fn($item) => (int) ($item["quantity"] ?? 1), $items)); ?><?php echo count($items) > 1 ? " � +" . (count($items) - 1) . " more item(s)" : ""; ?></p>
                         </div>
                     </div>
 
@@ -385,7 +398,7 @@ include("includes/admin_sidebar.php");
                         <span><strong>Customer</strong><?php echo htmlspecialchars($order["customer_name"] ?: "Guest Customer"); ?></span>
                         <span><strong>Phone</strong><?php echo htmlspecialchars($phone ?: "N/A"); ?></span>
                         <span><strong>Email</strong><?php echo htmlspecialchars($order["customer_email"] ?: "N/A"); ?></span>
-                        <span><strong>Total</strong>₹<?php echo number_format($totalAmount, 2); ?></span>
+                        <span><strong>Total</strong>?<?php echo number_format($totalAmount, 2); ?></span>
                         <span><strong>Payment</strong><?php echo htmlspecialchars($order["payment_method"] ?: "N/A"); ?></span>
                         <span><strong>Payment Status</strong><?php echo htmlspecialchars($order["payment_status"] ?: "Pending"); ?></span>
                         <span><strong>Payment ID</strong><?php echo htmlspecialchars($order["payment_id"] ?: "N/A"); ?></span>
@@ -438,7 +451,7 @@ include("includes/admin_sidebar.php");
                         <p><strong>Phone:</strong> <?php echo htmlspecialchars($phone ?: "N/A"); ?></p>
                         <p><strong>Email:</strong> <?php echo htmlspecialchars($order["customer_email"] ?: "N/A"); ?></p>
                         <p><strong>Address:</strong> <?php echo htmlspecialchars($order["delivery_address"] ?: "No address saved."); ?></p>
-                        <p><strong>Total Amount:</strong> ₹<?php echo number_format($totalAmount, 2); ?></p>
+                        <p><strong>Total Amount:</strong> ?<?php echo number_format($totalAmount, 2); ?></p>
                         <p><strong>Payment:</strong> <?php echo htmlspecialchars(($order["payment_method"] ?: "N/A") . " / " . ($order["payment_status"] ?: "Pending")); ?></p>
                         <p><strong>Payment ID:</strong> <?php echo htmlspecialchars($order["payment_id"] ?: "N/A"); ?></p>
                         <p><strong>Transaction ID:</strong> <?php echo htmlspecialchars($order["transaction_id"] ?: "N/A"); ?></p>
@@ -446,7 +459,7 @@ include("includes/admin_sidebar.php");
                         <p><strong>Status:</strong> <?php echo htmlspecialchars($order["order_status"] ?: "Pending"); ?></p>
                         <h3>Products</h3>
                         <?php foreach ($items as $item): ?>
-                            <p><?php echo htmlspecialchars($item["product_name"] ?? "Product"); ?> × <?php echo (int) ($item["quantity"] ?? 1); ?> - ₹<?php echo number_format((float) ($item["subtotal"] ?? 0), 2); ?></p>
+                            <p><?php echo htmlspecialchars($item["product_name"] ?? "Product"); ?> � <?php echo (int) ($item["quantity"] ?? 1); ?> - ?<?php echo number_format((float) ($item["subtotal"] ?? 0), 2); ?></p>
                         <?php endforeach; ?>
                     </div>
                 </article>
@@ -474,3 +487,5 @@ include("includes/admin_sidebar.php");
         </div>
     </div>
 <?php include("includes/admin_footer.php"); ?>
+
+

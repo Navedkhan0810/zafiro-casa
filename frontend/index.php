@@ -2,6 +2,7 @@
 include("../backend/includes/header.php");
 include_once("../backend/includes/product_images.php");
 include_once("../backend/includes/category_images.php");
+include_once("../backend/includes/homepage_content.php");
 
 if (isset($conn) && $conn instanceof mysqli) {
     $conn->query("CREATE TABLE IF NOT EXISTS hero_slides (
@@ -75,6 +76,7 @@ if (isset($conn) && $conn instanceof mysqli) {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $conn->query("ALTER TABLE homepage_video_banner ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0");
+    ensureHomepageContentTables($conn);
 }
 
 $defaultHeroSlides = [[
@@ -184,6 +186,12 @@ if (isset($conn) && $conn instanceof mysqli) {
     $newProducts = $conn->query("SELECT * FROM products WHERE LOWER(COALESCE(status, 'active')) = 'active' ORDER BY id DESC LIMIT 8");
     $homeDecorProducts = $conn->query("SELECT * FROM products WHERE LOWER(COALESCE(status, 'active')) = 'active' AND LOWER(category) IN ('clocks','cover','lamps','lights','mirrors','table decor','wall decor','decor & furnishing','decor furnishing') ORDER BY id DESC LIMIT 8");
 }
+$styleGallerySection = isset($conn) && $conn instanceof mysqli ? homepageContentSection($conn, 'style_gallery') : ['title' => 'Style Gallery', 'subtitle' => 'Luxury Details'];
+$featuredCategoriesSection = isset($conn) && $conn instanceof mysqli ? homepageContentSection($conn, 'featured_categories') : ['title' => 'Featured Categories', 'subtitle' => 'Curated For You'];
+$homeDecorSection = isset($conn) && $conn instanceof mysqli ? homepageContentSection($conn, 'home_decor') : ['title' => 'Home Decor', 'subtitle' => 'Discover every detail that matters', 'button_text' => 'View All', 'button_link' => 'decor-furnishing.php'];
+$styleGalleryItems = isset($conn) && $conn instanceof mysqli ? homepageContentItems($conn, 'style_gallery', 8) : [];
+$featuredCategoryItems = isset($conn) && $conn instanceof mysqli ? homepageContentItems($conn, 'featured_categories', 6) : [];
+$homeDecorItems = isset($conn) && $conn instanceof mysqli ? homepageContentItems($conn, 'home_decor', 8) : [];
 ?>
 
 <main>
@@ -281,80 +289,36 @@ if (isset($conn) && $conn instanceof mysqli) {
         </div>
     </section>
 
-    <?php
-        $styleGalleryCards = [
-            ["title" => "Mirrors", "slug" => "mirrors"],
-            ["title" => "Bathroom Accessories", "slug" => "bathroom-accessories"],
-            ["title" => "Bedroom", "slug" => "bedroom"],
-            ["title" => "Decor & Furnishing", "slug" => "decor-furnishing"],
-            ["title" => "Study", "slug" => "study-office"],
-            ["title" => "Modular Kitchen", "slug" => "modular-kitchen"],
-            ["title" => "Dining", "slug" => "dining"],
-            ["title" => "Living", "slug" => "living"],
-        ];
-    ?>
+    <?php if (($styleGallerySection["status"] ?? "active") === "active" && $styleGalleryItems): ?>
     <section class="section-block instagram-style-section premium-fade">
         <div class="section-title">
-            <span>Luxury Details</span>
-            <h2>Style Gallery</h2>
+            <span><?php echo htmlspecialchars($styleGallerySection["subtitle"] ?? ""); ?></span>
+            <h2><?php echo htmlspecialchars($styleGallerySection["title"] ?? "Style Gallery"); ?></h2>
         </div>
         <div class="instagram-style-grid">
-            <?php foreach ($styleGalleryCards as $galleryCard): ?>
-                <a href="<?php echo htmlspecialchars(zafiroCategoryUrl($galleryCard["slug"])); ?>"><img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback($galleryCard["slug"])); ?>" alt="<?php echo htmlspecialchars($galleryCard["title"]); ?>" loading="lazy" decoding="async" width="420" height="420"><span><strong><?php echo htmlspecialchars($galleryCard["title"]); ?></strong></span></a>
+            <?php foreach ($styleGalleryItems as $galleryCard): ?>
+                <a href="<?php echo htmlspecialchars($galleryCard["button_link"] ?: "product-list.php"); ?>"><img src="<?php echo htmlspecialchars($galleryCard["image_path"]); ?>" alt="<?php echo htmlspecialchars($galleryCard["title"]); ?>" loading="lazy" decoding="async" width="420" height="420"><span><strong><?php echo htmlspecialchars($galleryCard["title"]); ?></strong></span></a>
             <?php endforeach; ?>
         </div>
     </section>
-
+    <?php endif; ?>    <?php if (($featuredCategoriesSection["status"] ?? "active") === "active" && $featuredCategoryItems): ?>
     <section class="section-block categories" id="categories">
         <div class="section-title">
-            <span>Curated For You</span>
-            <h2>Featured Categories</h2>
+            <span><?php echo htmlspecialchars($featuredCategoriesSection["subtitle"] ?? ""); ?></span>
+            <h2><?php echo htmlspecialchars($featuredCategoriesSection["title"] ?? "Featured Categories"); ?></h2>
         </div>
-
         <div class="grid">
-            <a href="product-list.php?category=sofa" class="category-link">
-                <div class="card category-card">
-                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("sofa")); ?>" alt="Sofas" loading="lazy" decoding="async" width="600" height="400">
-                    <div class="card-overlay"><h3>Sofa</h3></div>
-                </div>
-            </a>
-
-            <a href="product-list.php?category=beds" class="category-link">
-                <div class="card category-card">
-                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("beds")); ?>" alt="Beds" loading="lazy" decoding="async" width="600" height="400">
-                    <div class="card-overlay"><h3>Beds</h3></div>
-                </div>
-            </a>
-
-            <a href="product-list.php?category=table" class="category-link">
-                <div class="card category-card">
-                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("table")); ?>" alt="Tables" loading="lazy" decoding="async" width="600" height="400">
-                    <div class="card-overlay"><h3>Table</h3></div>
-                </div>
-            </a>
-
-            <a href="product-list.php?category=chair" class="category-link">
-                <div class="card category-card">
-                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("chair")); ?>" alt="Chairs" loading="lazy" decoding="async" width="600" height="400">
-                    <div class="card-overlay"><h3>Chair</h3></div>
-                </div>
-            </a>
-
-            <a href="product-list.php?category=table" class="category-link">
-                <div class="card category-card">
-                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("table")); ?>" alt="Luxury Tables" loading="lazy" decoding="async" width="600" height="400">
-                    <div class="card-overlay"><h3>Luxury Tables</h3></div>
-                </div>
-            </a>
-
-            <a href="product-list.php?category=chair" class="category-link">
-                <div class="card category-card">
-                    <img src="<?php echo htmlspecialchars(zafiroCategoryImageFallback("chair")); ?>" alt="Premium Chairs" loading="lazy" decoding="async" width="600" height="400">
-                    <div class="card-overlay"><h3>Premium Chairs</h3></div>
-                </div>
-            </a>
+            <?php foreach ($featuredCategoryItems as $categoryCard): ?>
+                <a href="<?php echo htmlspecialchars($categoryCard["button_link"] ?: "product-list.php"); ?>" class="category-link">
+                    <div class="card category-card">
+                        <img src="<?php echo htmlspecialchars($categoryCard["image_path"]); ?>" alt="<?php echo htmlspecialchars($categoryCard["title"]); ?>" loading="lazy" decoding="async" width="600" height="400">
+                        <div class="card-overlay"><h3><?php echo htmlspecialchars($categoryCard["title"]); ?></h3></div>
+                    </div>
+                </a>
+            <?php endforeach; ?>
         </div>
     </section>
+    <?php endif; ?>
 
     <section class="section-block products">
         <div class="section-title">
@@ -421,31 +385,30 @@ if (isset($conn) && $conn instanceof mysqli) {
         </div>
     </section>
 
-    <?php if ($homeDecorProducts && $homeDecorProducts->num_rows > 0): ?>
+    <?php if (($homeDecorSection["status"] ?? "active") === "active" && ($homeDecorItems || ($homeDecorProducts && $homeDecorProducts->num_rows > 0))): ?>
     <section class="section-block home-decor-section">
         <div class="home-decor-head">
             <div>
-                <span>Luxury Details</span>
-                <h2>Home Decor</h2>
-                <p>Discover every detail that matters</p>
+                <span><?php echo htmlspecialchars($homeDecorSection["subtitle"] ?? ""); ?></span>
+                <h2><?php echo htmlspecialchars($homeDecorSection["title"] ?? "Home Decor"); ?></h2>
+                <p><?php echo htmlspecialchars($homeDecorSection["button_text"] ?? ""); ?></p>
             </div>
-            <a class="home-decor-view" href="decor-furnishing.php">View All</a>
+            <?php if (!empty($homeDecorSection["button_link"])): ?><a class="home-decor-view" href="<?php echo htmlspecialchars($homeDecorSection["button_link"]); ?>"><?php echo htmlspecialchars($homeDecorSection["button_text"] ?: "View All"); ?></a><?php endif; ?>
         </div>
-
         <div class="home-decor-grid">
-            <?php while ($row = $homeDecorProducts->fetch_assoc()): ?>
-                <?php
-                $cardImage = getProductCardImage($row);
-                $displayPrice = !empty($row["discount_price"]) && (float) $row["discount_price"] > 0 ? $row["discount_price"] : $row["price"];
-                ?>
-                <a class="home-decor-card" href="product.php?id=<?php echo (int) $row["id"]; ?>">
-                    <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($row["name"]); ?>" loading="lazy" decoding="async" width="600" height="420">
-                    <div>
-                        <h3><?php echo htmlspecialchars($row["name"]); ?></h3>
-                        <span>Starting from &#8377;<?php echo htmlspecialchars($displayPrice); ?></span>
-                    </div>
-                </a>
-            <?php endwhile; ?>
+            <?php if ($homeDecorItems): ?>
+                <?php foreach ($homeDecorItems as $decorItem): ?>
+                    <a class="home-decor-card" href="<?php echo htmlspecialchars($decorItem["button_link"] ?: "product-list.php?category=decor-furnishing"); ?>">
+                        <img src="<?php echo htmlspecialchars($decorItem["image_path"]); ?>" alt="<?php echo htmlspecialchars($decorItem["title"]); ?>" loading="lazy" decoding="async" width="600" height="420">
+                        <div><h3><?php echo htmlspecialchars($decorItem["title"]); ?></h3><?php if (!empty($decorItem["price_text"])): ?><span><?php echo htmlspecialchars($decorItem["price_text"]); ?></span><?php endif; ?></div>
+                    </a>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <?php while ($row = $homeDecorProducts->fetch_assoc()): ?>
+                    <?php $cardImage = getProductCardImage($row); $displayPrice = !empty($row["discount_price"]) && (float) $row["discount_price"] > 0 ? $row["discount_price"] : $row["price"]; ?>
+                    <a class="home-decor-card" href="product.php?id=<?php echo (int) $row["id"]; ?>"><img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($row["name"]); ?>" loading="lazy" decoding="async" width="600" height="420"><div><h3><?php echo htmlspecialchars($row["name"]); ?></h3><span>Starting from &#8377;<?php echo htmlspecialchars($displayPrice); ?></span></div></a>
+                <?php endwhile; ?>
+            <?php endif; ?>
         </div>
     </section>
     <?php endif; ?>

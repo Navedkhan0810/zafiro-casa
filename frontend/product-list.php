@@ -74,6 +74,12 @@ if ($category !== '') {
 ?>
 
 <main class="product-list-page">
+    <?php
+    $pageBackText = "Back to Category";
+    $pageBackHref = "index.php";
+    $pageBackHistory = true;
+    include("../backend/includes/page_back_button.php");
+    ?>
     <section class="section-title">
         <span>Zafiro Casa</span>
         <h2><?php echo htmlspecialchars($title ?: "Products"); ?></h2>

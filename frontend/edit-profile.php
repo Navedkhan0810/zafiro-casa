@@ -101,6 +101,7 @@ include("../backend/includes/header.php");
 ?>
 
 <main class="account-simple-page">
+    <?php include("../backend/includes/profile_back_button.php"); ?>
     <section class="account-card edit-profile-card">
         <div class="edit-profile-head">
             <div class="edit-profile-media">

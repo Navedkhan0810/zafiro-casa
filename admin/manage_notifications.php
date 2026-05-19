@@ -49,16 +49,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $title = trim($_POST["title"] ?? "");
     $body = trim($_POST["message"] ?? "");
     $type = trim($_POST["type"] ?? "general");
+    $allowedTypes = ["general", "offer", "product", "order", "system"];
+    if (!in_array($type, $allowedTypes, true)) $type = "general";
     $targetType = "";
     $targetId = "";
     $linkUrl = trim($_POST["link_url"] ?? "");
+    if ($linkUrl !== "" && !preg_match("/^(?:[A-Za-z0-9_\-\.\/]+\.php(?:\?[A-Za-z0-9_\-=&%.]+)?|#[A-Za-z0-9_-]+)$/", $linkUrl)) {
+        $linkUrl = "";
+    }
     if (in_array($type, ["offer", "product"], true)) {
         $targetType = "product";
-        $targetId = trim($_POST["product_id"] ?? "");
+        $targetId = preg_match("/^\d+$/", (string) ($_POST["product_id"] ?? "")) ? trim($_POST["product_id"]) : "";
         if ($linkUrl === "" && $targetId !== "") $linkUrl = "product.php?id=" . (int) $targetId;
     } elseif ($type === "order") {
         $targetType = "order";
-        $targetId = trim($_POST["order_id"] ?? "");
+        $targetId = preg_match("/^[A-Za-z0-9_-]{1,60}$/", (string) ($_POST["order_id"] ?? "")) ? trim($_POST["order_id"]) : "";
         if ($linkUrl === "" && $targetId !== "") $linkUrl = "order-tracking.php?order_id=" . rawurlencode($targetId);
     } else {
         $targetType = "general";
@@ -124,3 +129,5 @@ include("includes/admin_sidebar.php");
         </div>
     </div>
 <?php include("includes/admin_footer.php"); ?>
+
+

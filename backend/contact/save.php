@@ -1,7 +1,16 @@
 <?php
 include("../config/db.php");
+include_once("../includes/csrf.php");
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST" || !csrf_validate()) {
+    header("Location: ../../frontend/index.php?contact=invalid");
+    exit;
+}
 
 $name = trim($_POST['name'] ?? '');
+if ($name === '') {
+    $name = trim(($_POST['first_name'] ?? '') . ' ' . ($_POST['last_name'] ?? ''));
+}
 $email = trim($_POST['email'] ?? '');
 $message = trim($_POST['message'] ?? '');
 
@@ -23,3 +32,4 @@ if ($stmt->execute()) {
 
 $conn->close();
 ?>
+

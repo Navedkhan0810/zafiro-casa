@@ -29,16 +29,16 @@ function csrf_require() {
 }
 
 function csrf_inject_forms($html) {
-    if (stripos($html, '<form') === false || stripos($html, 'method="POST"') === false && stripos($html, "method='POST'") === false) {
+    if (stripos($html, '<form') === false || !preg_match('/<form\b[^>]*method\s*=\s*["\']?post["\']?/i', $html)) {
         return $html;
     }
 
-    return preg_replace_callback('/<form\b[^>]*>/i', function ($match) {
+    return preg_replace_callback('/<form\b[^>]*>.*?<\/form>/is', function ($match) {
         $form = $match[0];
-        if (!preg_match('/method\s*=\s*["\']?post["\']?/i', $form) || stripos($form, 'csrf_token') !== false) {
+        if (!preg_match('/<form\b[^>]*method\s*=\s*["\']?post["\']?/i', $form) || preg_match('/name\s*=\s*["\']csrf_token["\']/i', $form)) {
             return $form;
         }
-        return $form . csrf_field();
+        return preg_replace('/<form\b[^>]*>/i', '$0' . csrf_field(), $form, 1);
     }, $html);
 }
 
@@ -49,3 +49,4 @@ function csrf_start_form_injection() {
     }
 }
 ?>
+

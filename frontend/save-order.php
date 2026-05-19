@@ -3,6 +3,7 @@ session_start();
 header("Content-Type: application/json");
 include("../backend/config/db.php");
 include_once("../backend/includes/user_auth.php");
+include_once("../backend/includes/csrf.php");
 
 if (empty($_SESSION["user_id"])) {
     http_response_code(401);
@@ -16,6 +17,20 @@ function save_order_column_exists($conn, $columnName) {
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     return (int) ($row["total"] ?? 0) > 0;
+}
+
+function save_order_table_exists($conn, $tableName) {
+    $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?");
+    $stmt->bind_param("s", $tableName);
+    $stmt->execute();
+    return (int) ($stmt->get_result()->fetch_assoc()["total"] ?? 0) > 0;
+}
+
+function save_order_table_column_exists($conn, $tableName, $columnName) {
+    $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?");
+    $stmt->bind_param("ss", $tableName, $columnName);
+    $stmt->execute();
+    return (int) ($stmt->get_result()->fetch_assoc()["total"] ?? 0) > 0;
 }
 
 $conn->query("CREATE TABLE IF NOT EXISTS orders (
@@ -74,6 +89,12 @@ $conn->query("CREATE TABLE IF NOT EXISTS order_items (
 )");
 
 $payload = json_decode(file_get_contents("php://input"), true);
+if (!csrf_validate($payload["csrf_token"] ?? ($_SERVER["HTTP_X_CSRF_TOKEN"] ?? ""))) {
+    http_response_code(403);
+    echo json_encode(["success" => false, "message" => "Invalid security token. Please refresh and try again."]);
+    exit;
+}
+
 if (!$payload || empty($payload["order_id"]) || empty($payload["items"])) {
     echo json_encode(["success" => false]);
     exit;
@@ -109,6 +130,7 @@ $deliveryAddress = implode(", ", $deliveryAddressParts);
 $paymentStatus = $payload["payment_status"] ?? "Pending";
 $orderStatus = $payload["order_status"] ?? "Placed";
 $paymentMethod = $payload["payment_method"] ?? "Pending";
+$checkoutMode = $payload["mode"] ?? "cart";
 $orderDate = date("Y-m-d H:i:s", strtotime($payload["order_date"] ?? "now"));
 $shippingDate = date("Y-m-d", strtotime($payload["shipping_date"] ?? "+2 days"));
 $deliveryDate = date("Y-m-d", strtotime($payload["delivery_date"] ?? "+7 days"));
@@ -148,9 +170,14 @@ $firstItem = $verifiedItems[0];
 $firstProductId = (int) $firstItem["product_id"];
 $firstProductName = $firstItem["product_name"];
 $firstQuantity = (int) $firstItem["quantity"];
+$conn->begin_transaction();
 $stmt = $conn->prepare("INSERT INTO orders (order_id, order_code, user_id, product_id, customer_name, customer_email, customer_phone, customer_contact, delivery_address, payment_status, order_status, order_date, shipping_date, delivery_date, product_name, quantity, payment_method, total, total_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 $stmt->bind_param("ssiisssssssssssisdd", $orderCode, $orderCode, $userId, $firstProductId, $customerName, $customerEmail, $customerContact, $customerContact, $deliveryAddress, $paymentStatus, $orderStatus, $orderDate, $shippingDate, $deliveryDate, $firstProductName, $firstQuantity, $paymentMethod, $total, $total);
-$stmt->execute();
+if (!$stmt->execute()) {
+    $conn->rollback();
+    echo json_encode(["success" => false, "message" => "Order could not be saved."]);
+    exit;
+}
 
 $itemStmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, quantity, price, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)");
 foreach ($verifiedItems as $item) {
@@ -161,8 +188,39 @@ foreach ($verifiedItems as $item) {
     $price = (float) $item["price"];
     $lineSubtotal = (float) $item["subtotal"];
     $itemStmt->bind_param("sissidd", $orderCode, $productId, $productName, $productImage, $quantity, $price, $lineSubtotal);
-    $itemStmt->execute();
+    if (!$itemStmt->execute()) {
+        $conn->rollback();
+        echo json_encode(["success" => false, "message" => "Order items could not be saved."]);
+        exit;
+    }
 }
 
+if ($checkoutMode === "cart" && save_order_table_exists($conn, "cart")) {
+    $orderedProductIds = array_values(array_unique(array_map(function ($item) {
+        return (int) $item["product_id"];
+    }, $verifiedItems)));
+
+    if ($orderedProductIds && save_order_table_column_exists($conn, "cart", "product_id")) {
+        $placeholders = implode(",", array_fill(0, count($orderedProductIds), "?"));
+        $types = "i" . str_repeat("i", count($orderedProductIds));
+        $params = array_merge([$userId], $orderedProductIds);
+        $deleteCartStmt = $conn->prepare("DELETE FROM cart WHERE user_id = ? AND product_id IN ($placeholders)");
+        $deleteCartStmt->bind_param($types, ...$params);
+    } else {
+        $deleteCartStmt = $conn->prepare("DELETE FROM cart WHERE user_id = ?");
+        $deleteCartStmt->bind_param("i", $userId);
+    }
+
+    if (!$deleteCartStmt->execute()) {
+        $conn->rollback();
+        echo json_encode(["success" => false, "message" => "Ordered cart items could not be removed."]);
+        exit;
+    }
+}
+
+$conn->commit();
 echo json_encode(["success" => true, "order_id" => $orderCode]);
 ?>
+
+
+

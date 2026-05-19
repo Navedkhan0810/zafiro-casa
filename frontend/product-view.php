@@ -79,6 +79,12 @@ include("../backend/includes/header.php");
 <link rel="stylesheet" href="../assets/css/product-view.css">
 
 <main class="product-view-page">
+    <?php
+    $pageBackText = "Back to Products";
+    $pageBackHref = "product-list.php";
+    $pageBackHistory = true;
+    include("../backend/includes/page_back_button.php");
+    ?>
     <?php if (!$product): ?>
         <section class="product-empty-state">
             <span>Zafiro Casa</span>

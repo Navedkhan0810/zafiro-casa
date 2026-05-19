@@ -72,6 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $order && !$existingReview) {
 include("../backend/includes/header.php");
 ?>
 <main class="account-simple-page review-order-page">
+    <?php include("../backend/includes/profile_back_button.php"); ?>
     <section class="account-card review-order-card">
         <?php if ($message): ?><div class="auth-alert <?php echo htmlspecialchars($messageType); ?>"><?php echo htmlspecialchars($message); ?></div><?php endif; ?>
         <?php if ($order): ?>

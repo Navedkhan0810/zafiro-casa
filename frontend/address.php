@@ -64,6 +64,7 @@ include("../backend/includes/header.php");
 ?>
 <main class="address-page-bg">
     <div class="address-container">
+    <?php include("../backend/includes/profile_back_button.php"); ?>
     <section class="account-card">
         <h1><?php echo $editAddress ? 'Edit Address' : 'Add Address'; ?></h1>
         <form action="address.php" method="POST">

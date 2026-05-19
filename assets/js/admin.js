@@ -574,6 +574,12 @@ function initAdminUserManager() {
             zafiroConfirmSubmit(event, form, "Delete this user safely? This will mark the account as deleted.", "Delete");
         });
     });
+
+    document.querySelectorAll(".restore-user-form").forEach(function (form) {
+        form.addEventListener("submit", function (event) {
+            zafiroConfirmSubmit(event, form, "Are you sure you want to restore this user?", "Restore User");
+        });
+    });
 }
 
 function initAdminReviewManager() {

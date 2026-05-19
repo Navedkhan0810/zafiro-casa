@@ -14,13 +14,15 @@ if (!function_exists('zafiroPublicImageUrl')) {
         $clean = str_replace('\\', '/', $path);
         $clean = preg_replace('~^(\.\./)+~', '', $clean);
         $clean = ltrim($clean, '/');
-        $clean = preg_replace('~^myproject/~', '', $clean);
+        $clean = preg_replace('~^(my(?:project)|zafiro-casa)/~', '', $clean);
 
         $root = realpath(__DIR__ . '/../../');
         $file = $root ? realpath($root . '/' . $clean) : false;
         if (!$file || strpos($file, $root) !== 0 || !is_file($file)) return zafiroImageFallback();
 
-        return '/myproject/' . $clean;
+        $basePath = function_exists('zafiro_base_path') ? zafiro_base_path() : '/zafiro-casa';
+        if ($basePath === '/' && strpos($_SERVER['SCRIPT_NAME'] ?? '', '/zafiro-casa/') === 0) $basePath = '/zafiro-casa';
+        return rtrim($basePath, '/') . '/' . $clean;
     }
 }
 ?>

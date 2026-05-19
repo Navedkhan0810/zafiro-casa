@@ -1,5 +1,11 @@
 <?php include("../backend/includes/header.php"); ?>
 <main class="cart-page">
+    <?php
+    $pageBackText = "Back to Shopping";
+    $pageBackHref = "index.php";
+    $pageBackHistory = true;
+    include("../backend/includes/page_back_button.php");
+    ?>
     <div class="cart-container cart-layout">
         <section class="cart-main cart-products">
             <div class="cart-address-box">

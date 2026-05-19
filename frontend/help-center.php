@@ -1,6 +1,7 @@
 <?php include("../backend/includes/header.php"); ?>
 <main class="page-bg luxury-bg help-bg">
     <div class="page-content account-simple-page">
+    <?php include("../backend/includes/profile_back_button.php"); ?>
     <section class="account-card">
         <h1>Help Center</h1>
         <div class="help-accordion">

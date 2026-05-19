@@ -17,6 +17,11 @@ foreach ($cards as $card) {
 ?>
 
 <main class="mega-page">
+    <?php
+    $pageBackText = "Back to Home";
+    $pageBackHref = "index.php";
+    include("../backend/includes/page_back_button.php");
+    ?>
     <section class="mega-hero">
         <span>Zafiro Casa Luxury Living</span>
         <h1><?php echo htmlspecialchars($pageTitle); ?></h1>

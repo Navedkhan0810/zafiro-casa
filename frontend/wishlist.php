@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 include("../backend/includes/header.php");
 ?>
 <main class="account-simple-page">
+    <?php include("../backend/includes/profile_back_button.php"); ?>
     <section class="account-card">
         <h1>Wishlist</h1>
         <div id="wishlistProducts" class="commerce-grid"><p>Your wishlist is empty.</p></div>
